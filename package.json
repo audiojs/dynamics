@@ -1,0 +1,71 @@
+{
+  "name": "dynamics-processor",
+  "version": "0.1.0",
+  "type": "module",
+  "types": "index.d.ts",
+  "description": "Dynamics processing — compressor, limiter, gate, expander, de-esser, ducker, softclip, compand",
+  "sideEffects": false,
+  "exports": {
+    ".": "./index.js",
+    "./compressor": "./compressor.js",
+    "./limiter": "./limiter.js",
+    "./gate": "./gate.js",
+    "./expander": "./expander.js",
+    "./deesser": "./deesser.js",
+    "./ducker": "./ducker.js",
+    "./softclip": "./softclip.js",
+    "./compand": "./compand.js",
+    "./envelope": "./envelope.js",
+    "./biquad": "./biquad.js",
+    "./util": "./util.js"
+  },
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "compressor.js",
+    "limiter.js",
+    "gate.js",
+    "expander.js",
+    "deesser.js",
+    "ducker.js",
+    "softclip.js",
+    "compand.js",
+    "envelope.js",
+    "biquad.js",
+    "util.js"
+  ],
+  "scripts": {
+    "test": "node test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/audiojs/dynamics-processor.git"
+  },
+  "keywords": [
+    "dynamics",
+    "compressor",
+    "limiter",
+    "gate",
+    "expander",
+    "deesser",
+    "ducker",
+    "softclip",
+    "compand",
+    "sidechain",
+    "audio",
+    "audiojs",
+    "dsp"
+  ],
+  "author": "Dmitry Iv. <df.creative@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/audiojs/dynamics-processor/issues"
+  },
+  "homepage": "https://github.com/audiojs/dynamics-processor#readme",
+  "engines": {
+    "node": ">=18"
+  },
+  "devDependencies": {
+    "tst": "^9.4.0"
+  }
+}

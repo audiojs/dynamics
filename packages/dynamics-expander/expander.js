@@ -1,5 +1,5 @@
-import { envelope } from './envelope.js'
-import { writer, concat, db2lin, lin2db } from './util.js'
+import { envelope } from '@audio/dynamics-envelope'
+import { writer, concat, db2lin, lin2db } from '@audio/dynamics-core'
 
 // Downward expander: reduces gain below threshold by (T-L)·(ratio-1) dB,
 // clamped at `range` dB of max reduction. Softer than a gate.

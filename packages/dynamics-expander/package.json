@@ -1,0 +1,42 @@
+{
+  "name": "@audio/dynamics-expander",
+  "version": "0.1.0",
+  "description": "Downward expander: reduces gain below threshold by (T-L)·(ratio-1) dB,",
+  "type": "module",
+  "sideEffects": false,
+  "main": "expander.js",
+  "exports": {
+    ".": "./expander.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "expander.js"
+  ],
+  "dependencies": {
+    "@audio/dynamics-core": "^0.1.0",
+    "@audio/dynamics-envelope": "^0.1.0"
+  },
+  "keywords": [
+    "audio",
+    "dsp",
+    "dynamics",
+    "expander"
+  ],
+  "license": "MIT",
+  "author": "Dmitry Iv. <dfcreative@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/audiojs/dynamics-processor.git",
+    "directory": "packages/dynamics-expander"
+  },
+  "homepage": "https://github.com/audiojs/dynamics-processor/tree/main/packages/dynamics-expander",
+  "bugs": {
+    "url": "https://github.com/audiojs/dynamics-processor/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

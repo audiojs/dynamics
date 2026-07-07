@@ -1,0 +1,42 @@
+{
+  "name": "@audio/dynamics-compand",
+  "version": "0.1.0",
+  "description": "Multi-segment compander (SoX `compand`). Arbitrary piecewise-linear transfer",
+  "type": "module",
+  "sideEffects": false,
+  "main": "compand.js",
+  "exports": {
+    ".": "./compand.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "compand.js"
+  ],
+  "dependencies": {
+    "@audio/dynamics-core": "^0.1.0",
+    "@audio/dynamics-envelope": "^0.1.0"
+  },
+  "keywords": [
+    "audio",
+    "dsp",
+    "dynamics",
+    "compand"
+  ],
+  "license": "MIT",
+  "author": "Dmitry Iv. <dfcreative@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/audiojs/dynamics-processor.git",
+    "directory": "packages/dynamics-compand"
+  },
+  "homepage": "https://github.com/audiojs/dynamics-processor/tree/main/packages/dynamics-compand",
+  "bugs": {
+    "url": "https://github.com/audiojs/dynamics-processor/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

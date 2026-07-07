@@ -1,4 +1,4 @@
-import { writer, concat, db2lin, timeCoef } from './util.js'
+import { writer, concat, db2lin, timeCoef } from '@audio/dynamics-core'
 
 // Lookahead brickwall limiter. A sliding-window maximum (monotonic deque) over
 // the lookahead span drives the envelope, so the gain at emission accounts for

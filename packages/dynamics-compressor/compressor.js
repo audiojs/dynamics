@@ -1,5 +1,5 @@
-import { envelope } from './envelope.js'
-import { writer, concat, db2lin, lin2db } from './util.js'
+import { envelope } from '@audio/dynamics-envelope'
+import { writer, concat, db2lin, lin2db } from '@audio/dynamics-core'
 
 // Feed-forward soft-knee compressor (Giannoulis-Massberg topology).
 // Envelope → log domain → gain curve → apply to input.

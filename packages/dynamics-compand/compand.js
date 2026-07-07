@@ -1,5 +1,5 @@
-import { envelope } from './envelope.js'
-import { writer, concat, db2lin, lin2db } from './util.js'
+import { envelope } from '@audio/dynamics-envelope'
+import { writer, concat, db2lin, lin2db } from '@audio/dynamics-core'
 
 // Multi-segment compander (SoX `compand`). Arbitrary piecewise-linear transfer
 // in dB. A single curve unifies compression, expansion and gating: points below

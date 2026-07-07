@@ -1,5 +1,5 @@
-import { envelope } from './envelope.js'
-import { writer, concat, db2lin, timeCoef } from './util.js'
+import { envelope } from '@audio/dynamics-envelope'
+import { writer, concat, db2lin, timeCoef } from '@audio/dynamics-core'
 
 // Noise gate with hold-then-close logic and smoothed gain transitions.
 // Envelope triggers open/close, `hold` ms keeps gate open after level drop to

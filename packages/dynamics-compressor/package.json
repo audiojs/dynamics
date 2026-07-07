@@ -1,0 +1,42 @@
+{
+  "name": "@audio/dynamics-compressor",
+  "version": "0.1.0",
+  "description": "Feed-forward soft-knee compressor (Giannoulis-Massberg topology)",
+  "type": "module",
+  "sideEffects": false,
+  "main": "compressor.js",
+  "exports": {
+    ".": "./compressor.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "compressor.js"
+  ],
+  "dependencies": {
+    "@audio/dynamics-core": "^0.1.0",
+    "@audio/dynamics-envelope": "^0.1.0"
+  },
+  "keywords": [
+    "audio",
+    "dsp",
+    "dynamics",
+    "compressor"
+  ],
+  "license": "MIT",
+  "author": "Dmitry Iv. <dfcreative@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/audiojs/dynamics-processor.git",
+    "directory": "packages/dynamics-compressor"
+  },
+  "homepage": "https://github.com/audiojs/dynamics-processor/tree/main/packages/dynamics-compressor",
+  "bugs": {
+    "url": "https://github.com/audiojs/dynamics-processor/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

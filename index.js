@@ -1,9 +1,13 @@
-export { default as compressor } from './compressor.js'
-export { default as limiter } from './limiter.js'
-export { default as gate } from './gate.js'
-export { default as expander } from './expander.js'
-export { default as deesser } from './deesser.js'
-export { default as ducker } from './ducker.js'
-export { default as softclip } from './softclip.js'
-export { default as compand } from './compand.js'
-export { envelope } from './envelope.js'
+// @audio/dynamics — dynamics processing umbrella re-exporting every @audio/dynamics-* atom.
+// For smaller bundles, depend directly on the individual atom.
+
+export { default as compressor, compressorGain } from '@audio/dynamics-compressor'
+export { default as limiter } from '@audio/dynamics-limiter'
+export { default as gate } from '@audio/dynamics-gate'
+export { default as expander } from '@audio/dynamics-expander'
+export { default as deesser } from '@audio/dynamics-deesser'
+export { default as ducker } from '@audio/dynamics-ducker'
+export { default as softclip } from '@audio/dynamics-softclip'
+export { default as compand } from '@audio/dynamics-compand'
+export { default as transientShaper } from '@audio/dynamics-transient-shaper'
+export { envelope } from '@audio/dynamics-envelope'

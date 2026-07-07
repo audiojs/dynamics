@@ -1,0 +1,38 @@
+{
+  "name": "@audio/dynamics-transient-shaper",
+  "version": "0.1.0",
+  "description": "Transient shaper — independently boosts/cuts attack and sustain portions",
+  "type": "module",
+  "sideEffects": false,
+  "main": "transient-shaper.js",
+  "exports": {
+    ".": "./transient-shaper.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "transient-shaper.js"
+  ],
+  "keywords": [
+    "audio",
+    "dsp",
+    "dynamics",
+    "transient-shaper"
+  ],
+  "license": "MIT",
+  "author": "Dmitry Iv. <dfcreative@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/audiojs/dynamics-processor.git",
+    "directory": "packages/dynamics-transient-shaper"
+  },
+  "homepage": "https://github.com/audiojs/dynamics-processor/tree/main/packages/dynamics-transient-shaper",
+  "bugs": {
+    "url": "https://github.com/audiojs/dynamics-processor/issues"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

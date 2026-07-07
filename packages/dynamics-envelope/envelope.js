@@ -1,4 +1,4 @@
-import { timeCoef } from './util.js'
+import { timeCoef } from '@audio/dynamics-core'
 
 // Branching one-pole envelope follower. Returns a stateful per-sample detector.
 // Separate attack and release time constants; the classic feed-forward compressor

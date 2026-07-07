@@ -1,7 +1,7 @@
-import { envelope } from './envelope.js'
-import { bandpass, biquad, biquadState } from './biquad.js'
-import { compressorGain } from './compressor.js'
-import { writer, concat, db2lin, lin2db } from './util.js'
+import { envelope } from '@audio/dynamics-envelope'
+import { bandpass, biquad, biquadState } from '@audio/dynamics-core'
+import { compressorGain } from '@audio/dynamics-compressor'
+import { writer, concat, db2lin, lin2db } from '@audio/dynamics-core'
 
 // De-esser: bandpass sidechain (sibilance band) drives a compressor whose gain
 // reduction is applied broadband — simple and transparent.

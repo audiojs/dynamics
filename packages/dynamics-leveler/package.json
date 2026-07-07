@@ -1,19 +1,42 @@
 {
   "name": "@audio/dynamics-leveler",
-  "version": "0.0.0",
-  "description": "Gain riding / dialogue leveler — frame-wise loudness normalization (FFmpeg dynaudnorm, Vocal Rider class)",
+  "version": "0.1.0",
+  "description": "Gain riding / dialogue leveler — framewise smoothed loudness normalization (dynaudnorm / Vocal Rider class)",
   "type": "module",
   "sideEffects": false,
-  "private": true,
+  "main": "leveler.js",
+  "exports": {
+    ".": "./leveler.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "leveler.js"
+  ],
+  "dependencies": {
+    "@audio/dynamics-core": "^0.1.0"
+  },
   "keywords": [
     "audio",
     "dsp",
     "dynamics",
+    "compressor",
     "leveler"
   ],
   "license": "MIT",
   "author": "Dmitry Iv. <dfcreative@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/audiojs/dynamics-processor.git",
+    "directory": "packages/dynamics-leveler"
+  },
+  "homepage": "https://github.com/audiojs/dynamics-processor/tree/main/packages/dynamics-leveler",
+  "bugs": {
+    "url": "https://github.com/audiojs/dynamics-processor/issues"
+  },
   "engines": {
     "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

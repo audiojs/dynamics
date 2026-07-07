@@ -1,5 +1,5 @@
 import test, { almost, ok, is } from 'tst'
-import { compressor, limiter, gate, expander, deesser, ducker, softclip, compand, envelope, transientShaper, multiband } from './index.js'
+import { compressor, limiter, gate, expander, deesser, ducker, softclip, compand, envelope, transientShaper, multiband, opto, fet, vca, varimu, leveler } from './index.js'
 
 const fs = 44100
 
@@ -280,4 +280,76 @@ test('multiband — compresses only the targeted band', () => {
 	ok(Math.abs(20 * Math.log10(lo1 / lo0)) < 1, 'low band untouched')
 	ok(20 * Math.log10(hi1 / hi0) < -6, 'high band compressed ≥6 dB')
 	ok(d.every(isFinite), 'no NaN')
+})
+
+function tone (db, seconds, freq = 997, sr = 44100) {
+	let a = 10 ** (db / 20)
+	let d = new Float32Array(Math.round(seconds * sr))
+	for (let i = 0; i < d.length; i++) d[i] = a * Math.sin(2 * Math.PI * freq * i / sr)
+	return d
+}
+function rmsOf (d, from = 0, to = d.length) {
+	let s = 0
+	for (let i = from; i < to; i++) s += d[i] * d[i]
+	return Math.sqrt(s / (to - from))
+}
+const toDb = x => 20 * Math.log10(x)
+
+test('models — all four reduce hot material and stay finite; vca transparent below threshold', () => {
+	let sr = 44100
+	for (let model of [opto, fet, vca, varimu]) {
+		let out = model(tone(-6, 1), { threshold: -24, sampleRate: sr })
+		ok(out.every(isFinite), 'finite')
+		ok(rmsOf(out, sr / 2) < rmsOf(tone(-6, 1)) * 0.8, 'reduces ≥2 dB')
+	}
+	let quiet = tone(-30, 0.5)
+	let out = vca(Float32Array.from(quiet), { threshold: -20, sampleRate: 44100 })
+	almost(toDb(rmsOf(out, 4410) / rmsOf(quiet, 4410)), 0, 0.3, 'below threshold untouched')
+})
+
+test('fet attacks much faster than varimu', () => {
+	let sr = 44100
+	let sig = () => { let d = new Float32Array(sr); let s = tone(-6, 0.8); d.set(s, sr - s.length); return d }
+	let onset = sr - Math.round(0.8 * sr)
+	let overshoot = out => rmsOf(out, onset, onset + 220) / rmsOf(out, sr - 8820, sr) // first 5 ms vs steady
+	let f = overshoot(fet(sig(), { threshold: -24, sampleRate: sr }))
+	let v = overshoot(varimu(sig(), { threshold: -24, sampleRate: sr }))
+	ok(v > f * 1.3, 'varimu lets ' + v.toFixed(2) + '× onset through vs fet ' + f.toFixed(2) + '×')
+})
+
+test('opto release is program-dependent (longer reduction → slower recovery)', () => {
+	let sr = 44100
+	let mk = loudSec => {
+		let loud = tone(-6, loudSec), probe = tone(-30, 1)
+		let d = new Float32Array(loud.length + probe.length)
+		d.set(loud, 0); d.set(probe, loud.length)
+		return { d, probeAt: loud.length }
+	}
+	let a = mk(0.4), b = mk(5)
+	let outA = opto(a.d, { threshold: -24, sampleRate: sr })
+	let outB = opto(b.d, { threshold: -24, sampleRate: sr })
+	let probeA = rmsOf(outA, a.probeAt + 2205, a.probeAt + 8820)
+	let probeB = rmsOf(outB, b.probeAt + 2205, b.probeAt + 8820)
+	ok(probeA > probeB * 1.05, 'short-burst recovery faster (' + (probeA / probeB).toFixed(3) + '×)')
+})
+
+test('varimu ratio grows with drive', () => {
+	let sr = 44100
+	let g6 = tone(-16, 1.5), g18 = tone(-4, 1.5)
+	let r6 = toDb(rmsOf(varimu(g6, { threshold: -22, sampleRate: sr }), sr) / rmsOf(tone(-16, 1.5), sr))
+	let r18 = toDb(rmsOf(varimu(g18, { threshold: -22, sampleRate: sr }), sr) / rmsOf(tone(-4, 1.5), sr))
+	ok((-r18) / 18 > (-r6) / 6 * 1.1, 'GR/over grows: ' + (-r6).toFixed(1) + ' dB @+6 → ' + (-r18).toFixed(1) + ' dB @+18')
+})
+
+test('leveler — sections ride to target, peak-guarded', () => {
+	let sr = 44100
+	let quiet = tone(-28, 3), loud = tone(-8, 3)
+	let d = new Float32Array(quiet.length + loud.length)
+	d.set(quiet, 0); d.set(loud, quiet.length)
+	leveler(d, { fs: sr, target: -20 })
+	ok(d.every(v => Math.abs(v) <= 1), 'no clipping')
+	let qDb = toDb(rmsOf(d, sr, 2 * sr))
+	let lDb = toDb(rmsOf(d, quiet.length + sr, quiet.length + 2 * sr))
+	almost(qDb, -20, 2.5, 'quiet section ' + qDb.toFixed(1))
+	almost(lDb, -20, 2.5, 'loud section ' + lDb.toFixed(1))
 })

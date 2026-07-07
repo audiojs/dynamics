@@ -45,6 +45,7 @@ Every processor except `softclip` is built on this: a branching one-pole followe
 import { envelope } from 'dynamics-processor'
 
 let follow = envelope({ attack: 5, release: 100, detector: 'peak' })
+let level = []
 for (let x of samples) level.push(follow(x))
 ```
 
@@ -83,7 +84,7 @@ compressor(data, { threshold: -24, ratio: 2, knee: 12, attack: 10, release: 200,
 
 ## limiter
 
-Lookahead brickwall limiter. Peak-hold envelope with exponential release; input delayed by `lookahead` ms so gain reduction lands before the peak emerges.
+Lookahead brickwall limiter. A sliding-window maximum over the lookahead span drives the envelope, so gain reduction always covers every sample in transit — instant attack `lookahead` ms before a peak emerges, exponential release after it passes.
 
 ```js
 import { limiter } from 'dynamics-processor'

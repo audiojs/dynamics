@@ -27,7 +27,6 @@ export interface GateOpts extends EnvelopeOpts {
   threshold?: number    // dB
   range?: number        // dB reduction when closed (e.g. -60)
   hold?: number         // ms
-  knee?: number
 }
 
 export interface ExpanderOpts extends EnvelopeOpts {

@@ -4,8 +4,7 @@ import { compressorGain } from './compressor.js'
 import { writer, concat, db2lin, lin2db } from './util.js'
 
 // De-esser: bandpass sidechain (sibilance band) drives a compressor whose gain
-// reduction is applied either to the full band (classic) or only to the HF shelf
-// (split mode — requires external high-shelf if user wants stricter separation).
+// reduction is applied broadband — simple and transparent.
 export default function deesser(data, opts) {
   if (!(data instanceof Float32Array)) return writer(deesserStream(data))
   let s = deesserStream(opts)

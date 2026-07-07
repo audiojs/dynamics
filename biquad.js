@@ -14,17 +14,6 @@ export function bandpass(sr, freq, q) {
   }
 }
 
-export function highpass(sr, freq, q) {
-  let w0 = PI2 * freq / sr
-  let cw = Math.cos(w0)
-  let a = Math.sin(w0) / (2 * q)
-  let a0 = 1 + a
-  return {
-    b0: (1 + cw) / 2 / a0, b1: -(1 + cw) / a0, b2: (1 + cw) / 2 / a0,
-    a1: -2 * cw / a0, a2: (1 - a) / a0,
-  }
-}
-
 export function biquad(c, s, x) {
   let y = c.b0 * x + c.b1 * s.x1 + c.b2 * s.x2 - c.a1 * s.y1 - c.a2 * s.y2
   s.x2 = s.x1; s.x1 = x

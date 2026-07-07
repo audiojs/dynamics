@@ -35,7 +35,7 @@ export function expanderGain(levelDb, threshold, ratio, kneeDb, rangeDb) {
   let d = levelDb - threshold
   let r
   if (d > kneeDb / 2) r = 0
-  else if (d < -kneeDb / 2) r = d * (ratio - 1)
+  else if (d <= -kneeDb / 2) r = d * (ratio - 1)
   else {
     let x = d - kneeDb / 2
     r = (ratio - 1) * x * x / (2 * kneeDb)

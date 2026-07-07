@@ -14,7 +14,7 @@ export function compressorStream(opts = {}) {
   let ratio = opts.ratio ?? 4
   let knee = opts.knee ?? 6
   let makeupDb = opts.makeup ?? 0
-  let env = envelope(opts)
+  let env = envelope({ ...opts, attack: opts.attack ?? 5, release: opts.release ?? 100 })
 
   return {
     write(chunk) {
@@ -35,7 +35,7 @@ export function compressorStream(opts = {}) {
 export function compressorGain(levelDb, threshold, ratio, kneeDb) {
   let d = levelDb - threshold
   if (d < -kneeDb / 2) return 0
-  if (d > kneeDb / 2) return -(d * (1 - 1 / ratio))
+  if (d >= kneeDb / 2) return -(d * (1 - 1 / ratio))
   let x = d + kneeDb / 2
   return -(1 - 1 / ratio) * x * x / (2 * kneeDb)
 }

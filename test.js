@@ -67,6 +67,22 @@ test('compressor — makeup gain raises output', () => {
   ok(rms(withMakeup) > rms(noMakeup), 'makeup lifts level')
 })
 
+test('compressor — hard knee (knee: 0) yields no NaN', () => {
+  let data = sine(1000, fs >> 2, 0.5)
+  let out = compressor(data, { threshold: -20, ratio: 4, knee: 0 })
+  for (let i = 0; i < out.length; i++) if (Number.isNaN(out[i])) throw new Error(`NaN at ${i}`)
+  ok(rms(out) < rms(data), 'compresses')
+})
+
+test('compressor — default envelope is attack 5 / release 100 as documented', () => {
+  let data = sine(1000, fs >> 2, 0.5)
+  let dflt = compressor(data, { threshold: -20, ratio: 4 })
+  let expl = compressor(data, { threshold: -20, ratio: 4, attack: 5, release: 100 })
+  for (let i = 0; i < dflt.length; i++)
+    if (dflt[i] !== expl[i]) throw new Error(`defaults diverge at ${i}`)
+  ok(true, 'identical')
+})
+
 test('compressor — streaming matches batch length', () => {
   let data = sine(1000, 4096, 0.8)
   let write = compressor({ threshold: -20, ratio: 4, attack: 1, release: 10 })
@@ -90,6 +106,30 @@ test('limiter — passes signal below ceiling', () => {
   let quiet = sine(500, fs >> 2, 0.1)
   let out = limiter(quiet, { ceiling: -6 })
   almost(peak(out), peak(quiet), 0.01, 'passes')
+})
+
+test('limiter — brickwall holds on isolated transient', () => {
+  // A single spike followed by silence: the envelope must not release below
+  // a delayed peak still in the lookahead buffer.
+  let d = new Float32Array(2048)
+  d[100] = 1
+  let out = limiter(d, { ceiling: -6, lookahead: 5, release: 50 })
+  let ceilLin = Math.pow(10, -6 / 20)
+  ok(peak(out) <= ceilLin * (1 + 1e-6), `peak ${peak(out).toFixed(4)} ≤ ${ceilLin.toFixed(4)}`)
+})
+
+test('limiter — streaming matches batch exactly', () => {
+  let data = sine(500, 4096, 0.9)
+  let batch = limiter(data, { ceiling: -6, lookahead: 5, release: 20 })
+  let write = limiter({ ceiling: -6, lookahead: 5, release: 20 })
+  let a = write(data.subarray(0, 1000))
+  let b = write(data.subarray(1000))
+  let tail = write()
+  let stream = new Float32Array(batch.length)
+  stream.set(a); stream.set(b, a.length); stream.set(tail, a.length + b.length)
+  for (let i = 0; i < batch.length; i++)
+    if (batch[i] !== stream[i]) throw new Error(`diverges at ${i}: ${batch[i]} vs ${stream[i]}`)
+  ok(true, 'identical')
 })
 
 test('limiter — streaming preserves length', () => {
@@ -124,6 +164,14 @@ test('expander — gentle reduction below threshold', () => {
   let out = expander(quiet, { threshold: -20, ratio: 2, range: -20, attack: 1, release: 5 })
   ok(rms(out) < rms(quiet), 'reduced')
   ok(rms(out) > rms(quiet) * 0.05, 'not full gate')
+})
+
+
+test('expander — hard knee (knee: 0) yields no NaN', () => {
+  let quiet = sine(1000, fs >> 2, 0.03)
+  let out = expander(quiet, { threshold: -30, ratio: 2, knee: 0 })
+  for (let i = 0; i < out.length; i++) if (Number.isNaN(out[i])) throw new Error(`NaN at ${i}`)
+  ok(rms(out) < rms(quiet), 'expands')
 })
 
 

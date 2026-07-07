@@ -346,7 +346,7 @@ test('leveler — sections ride to target, peak-guarded', () => {
 	let quiet = tone(-28, 3), loud = tone(-8, 3)
 	let d = new Float32Array(quiet.length + loud.length)
 	d.set(quiet, 0); d.set(loud, quiet.length)
-	leveler(d, { fs: sr, target: -20 })
+	leveler(d, { fs: sr, target: -20, smooth: 2 })
 	ok(d.every(v => Math.abs(v) <= 1), 'no clipping')
 	let qDb = toDb(rmsOf(d, sr, 2 * sr))
 	let lDb = toDb(rmsOf(d, quiet.length + sr, quiet.length + 2 * sr))

@@ -1,4 +1,4 @@
-## dynamics-processor [![test](https://github.com/audiojs/dynamics-processor/actions/workflows/test.yml/badge.svg)](https://github.com/audiojs/dynamics-processor/actions/workflows/test.yml) [![npm](https://img.shields.io/npm/v/dynamics-processor)](https://npmjs.org/dynamics-processor) [![license](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/audiojs/dynamics-processor/blob/main/LICENSE)
+## @audio/dynamics [![test](https://github.com/audiojs/dynamics-processor/actions/workflows/test.yml/badge.svg)](https://github.com/audiojs/dynamics-processor/actions/workflows/test.yml) [![npm](https://img.shields.io/npm/v/@audio/dynamics)](https://npmjs.org/dynamics-processor) [![license](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/audiojs/dynamics-processor/blob/main/LICENSE)
 
 Dynamics processing — compressor, limiter, gate, expander, de-esser, ducker, softclip, compand. All built on a single branching envelope follower; differences are purely in the gain curve. Part of [audiojs](https://github.com/audiojs).
 
@@ -17,11 +17,11 @@ Dynamics processing — compressor, limiter, gate, expander, de-esser, ducker, s
 ## Usage
 
 ```
-npm install dynamics-processor
+npm install @audio/dynamics
 ```
 
 ```js
-import { compressor, limiter, gate, ducker } from 'dynamics-processor'
+import { compressor, limiter, gate, ducker } from '@audio/dynamics'
 
 let glued = compressor(samples, { threshold: -18, ratio: 4, attack: 5, release: 100 })
 let safe = limiter(glued, { ceiling: -0.3, lookahead: 5 })
@@ -42,7 +42,7 @@ let ducked = ducker(music, voice, { threshold: -30, range: -12 })
 Every processor except `softclip` is built on this: a branching one-pole follower with separate attack/release time constants, peak or RMS detection.
 
 ```js
-import { envelope } from 'dynamics-processor'
+import { envelope } from '@audio/dynamics'
 
 let follow = envelope({ attack: 5, release: 100, detector: 'peak' })
 let level = []
@@ -63,7 +63,7 @@ for (let x of samples) level.push(follow(x))
 Feed-forward soft-knee downward compressor — Giannoulis-Massberg topology. Envelope → log domain → quadratic soft-knee gain curve → linear gain applied to input.
 
 ```js
-import { compressor } from 'dynamics-processor'
+import { compressor } from '@audio/dynamics'
 
 compressor(data, { threshold: -18, ratio: 4 })
 compressor(data, { threshold: -24, ratio: 2, knee: 12, attack: 10, release: 200, makeup: 6 })
@@ -87,7 +87,7 @@ compressor(data, { threshold: -24, ratio: 2, knee: 12, attack: 10, release: 200,
 Lookahead brickwall limiter. A sliding-window maximum over the lookahead span drives the envelope, so gain reduction always covers every sample in transit — instant attack `lookahead` ms before a peak emerges, exponential release after it passes.
 
 ```js
-import { limiter } from 'dynamics-processor'
+import { limiter } from '@audio/dynamics'
 
 limiter(data, { ceiling: -0.3 })
 limiter(data, { ceiling: -1, lookahead: 10, release: 100 })
@@ -108,7 +108,7 @@ limiter(data, { ceiling: -1, lookahead: 10, release: 100 })
 Noise gate with hold-then-close logic. Below threshold, signal is attenuated by `range` dB. A `hold` timer keeps the gate open after a drop-out to avoid chatter; attack/release smooth the gain transitions.
 
 ```js
-import { gate } from 'dynamics-processor'
+import { gate } from '@audio/dynamics'
 
 gate(data, { threshold: -40 })
 gate(data, { threshold: -35, range: -80, hold: 20, attack: 1, release: 150 })
@@ -131,7 +131,7 @@ gate(data, { threshold: -35, range: -80, hold: 20, attack: 1, release: 150 })
 Downward expander — a softer gate. Below threshold, gain is reduced by `(threshold − level) × (ratio − 1)` dB, clamped at `range`.
 
 ```js
-import { expander } from 'dynamics-processor'
+import { expander } from '@audio/dynamics'
 
 expander(data, { threshold: -30, ratio: 2 })
 ```
@@ -154,7 +154,7 @@ expander(data, { threshold: -30, ratio: 2 })
 Sibilance compressor. A biquad bandpass drives the envelope follower; the resulting gain reduction is applied broadband. Simple and transparent.
 
 ```js
-import { deesser } from 'dynamics-processor'
+import { deesser } from '@audio/dynamics'
 
 deesser(data, { freq: 6500, threshold: -20 })
 deesser(data, { freq: 5500, q: 3, threshold: -24, ratio: 6 })
@@ -179,7 +179,7 @@ deesser(data, { freq: 5500, q: 3, threshold: -24, ratio: 6 })
 External-sidechain compressor. Main signal's gain tracks the level of a separate side signal.
 
 ```js
-import { ducker } from 'dynamics-processor'
+import { ducker } from '@audio/dynamics'
 
 // batch
 let podcast = ducker(music, voice, { threshold: -30, range: -12 })
@@ -209,7 +209,7 @@ let tail = duck()
 Static waveshaping — no time state, no pumping. Maps input through a fixed transfer curve; peaks saturate smoothly, introducing controlled harmonic content.
 
 ```js
-import { softclip } from 'dynamics-processor'
+import { softclip } from '@audio/dynamics'
 
 softclip(data, { curve: 'tanh', drive: 1.5 })
 softclip(data, { curve: 'cubic', drive: 2, ceiling: 0.9 })
@@ -230,7 +230,7 @@ softclip(data, { curve: 'cubic', drive: 2, ceiling: 0.9 })
 SoX-style multi-segment compander. Arbitrary piecewise-linear transfer in dB unifies compression, expansion, and gating under one curve — points below the identity line compress; above, they expand.
 
 ```js
-import { compand } from 'dynamics-processor'
+import { compand } from '@audio/dynamics'
 
 // Default: compress above -20 dB
 compand(data)

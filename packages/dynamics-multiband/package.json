@@ -1,0 +1,19 @@
+{
+  "name": "@audio/dynamics-multiband",
+  "version": "0.0.0",
+  "description": "Multiband compressor — crossover-split per-band compression (SoX mcompand; Music Enhancer / Auto-Chain stage)",
+  "type": "module",
+  "sideEffects": false,
+  "private": true,
+  "keywords": [
+    "audio",
+    "dsp",
+    "multiband",
+    "compressor"
+  ],
+  "license": "MIT",
+  "author": "Dmitry Iv. <dfcreative@gmail.com>",
+  "engines": {
+    "node": ">=18"
+  }
+}

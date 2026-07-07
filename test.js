@@ -1,5 +1,5 @@
 import test, { almost, ok, is } from 'tst'
-import { compressor, limiter, gate, expander, deesser, ducker, softclip, compand, envelope } from './index.js'
+import { compressor, limiter, gate, expander, deesser, ducker, softclip, compand, envelope, transientShaper } from './index.js'
 
 const fs = 44100
 
@@ -237,3 +237,15 @@ test('compand — identity points pass signal', () => {
   let out = compand(d, { points: [[-90, -90], [0, 0]], attack: 0.1, release: 0.1 })
   almost(rms(out), rms(d), rms(d) * 0.05, 'identity')
 })
+
+function impulse (n = 64) { let d = new Float64Array(n); d[0] = 1; return d }
+
+test('transientShaper — produces output without NaN', () => {
+	let data = impulse(4096)
+	// Add some signal
+	for (let i = 0; i < 100; i++) data[i] = Math.sin(2 * Math.PI * 440 * i / 44100) * (1 - i / 100)
+	transientShaper(data, { attackGain: 2, sustainGain: -0.5, fs: 44100 })
+	ok(data.every(isFinite), 'no NaN/Inf')
+	ok(data.some(x => Math.abs(x) > 0.001), 'has output')
+})
+

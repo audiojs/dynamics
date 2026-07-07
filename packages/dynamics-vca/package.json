@@ -1,0 +1,19 @@
+{
+  "name": "@audio/dynamics-vca",
+  "version": "0.0.0",
+  "description": "VCA compressor model — clean bus glue (dbx/SSL class)",
+  "type": "module",
+  "sideEffects": false,
+  "private": true,
+  "keywords": [
+    "audio",
+    "dsp",
+    "dynamics",
+    "vca"
+  ],
+  "license": "MIT",
+  "author": "Dmitry Iv. <dfcreative@gmail.com>",
+  "engines": {
+    "node": ">=18"
+  }
+}

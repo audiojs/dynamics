@@ -1,0 +1,19 @@
+{
+  "name": "@audio/dynamics-leveler",
+  "version": "0.0.0",
+  "description": "Gain riding / dialogue leveler — frame-wise loudness normalization (FFmpeg dynaudnorm, Vocal Rider class)",
+  "type": "module",
+  "sideEffects": false,
+  "private": true,
+  "keywords": [
+    "audio",
+    "dsp",
+    "dynamics",
+    "leveler"
+  ],
+  "license": "MIT",
+  "author": "Dmitry Iv. <dfcreative@gmail.com>",
+  "engines": {
+    "node": ">=18"
+  }
+}

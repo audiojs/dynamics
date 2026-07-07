@@ -1,19 +1,45 @@
 {
   "name": "@audio/dynamics-multiband",
-  "version": "0.0.0",
-  "description": "Multiband compressor — crossover-split per-band compression (SoX mcompand; Music Enhancer / Auto-Chain stage)",
+  "version": "0.1.0",
+  "description": "Multiband compressor — Linkwitz-Riley split + per-band soft-knee compression, flat sum (SoX mcompand class)",
   "type": "module",
   "sideEffects": false,
-  "private": true,
+  "main": "multiband.js",
+  "exports": {
+    ".": "./multiband.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "multiband.js"
+  ],
+  "dependencies": {
+    "@audio/eq-crossover": "file:../../../eq/packages/eq-crossover",
+    "@audio/dynamics-compressor": "^0.1.0",
+    "@audio/dynamics-core": "^0.1.0"
+  },
   "keywords": [
     "audio",
     "dsp",
+    "dynamics",
     "multiband",
-    "compressor"
+    "compressor",
+    "mcompand"
   ],
   "license": "MIT",
   "author": "Dmitry Iv. <dfcreative@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/audiojs/dynamics-processor.git",
+    "directory": "packages/dynamics-multiband"
+  },
+  "homepage": "https://github.com/audiojs/dynamics-processor/tree/main/packages/dynamics-multiband",
+  "bugs": {
+    "url": "https://github.com/audiojs/dynamics-processor/issues"
+  },
   "engines": {
     "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }

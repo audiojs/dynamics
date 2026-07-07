@@ -1,5 +1,5 @@
 import test, { almost, ok, is } from 'tst'
-import { compressor, limiter, gate, expander, deesser, ducker, softclip, compand, envelope, transientShaper } from './index.js'
+import { compressor, limiter, gate, expander, deesser, ducker, softclip, compand, envelope, transientShaper, multiband } from './index.js'
 
 const fs = 44100
 
@@ -249,3 +249,35 @@ test('transientShaper — produces output without NaN', () => {
 	ok(data.some(x => Math.abs(x) > 0.001), 'has output')
 })
 
+
+// single-bin rms (Goertzel)
+function energyAt (data, freq, sr = 44100) {
+	let w = 2 * Math.PI * freq / sr, cw = Math.cos(w)
+	let s1 = 0, s2 = 0
+	for (let i = 0; i < data.length; i++) { let s0 = data[i] + 2 * cw * s1 - s2; s2 = s1; s1 = s0 }
+	return Math.sqrt(Math.max(0, s1 * s1 + s2 * s2 - 2 * cw * s1 * s2)) / data.length
+}
+
+test('multiband — transparent without band params (LR flat sum)', () => {
+	for (let f of [100, 1000, 8000]) {
+		let d = new Float32Array(44100)
+		for (let i = 0; i < d.length; i++) d[i] = 0.5 * Math.sin(2 * Math.PI * f * i / 44100)
+		let ref = energyAt(d, f)
+		multiband(d, { freqs: [200, 2000], fs: 44100 })
+		let after = energyAt(d, f)
+		let db = 20 * Math.log10(after / ref)
+		ok(Math.abs(db) < 0.5, f + ' Hz passes flat (' + db.toFixed(2) + ' dB)')
+	}
+})
+
+test('multiband — compresses only the targeted band', () => {
+	let n = 44100
+	let d = new Float32Array(n)
+	for (let i = 0; i < n; i++) d[i] = 0.4 * Math.sin(2 * Math.PI * 150 * i / 44100) + 0.4 * Math.sin(2 * Math.PI * 5000 * i / 44100)
+	let lo0 = energyAt(d, 150), hi0 = energyAt(d, 5000)
+	multiband(d, { freqs: [1000], fs: 44100, bands: [null, { threshold: -30, ratio: 20, knee: 0, attack: 1, release: 50 }] })
+	let lo1 = energyAt(d, 150), hi1 = energyAt(d, 5000)
+	ok(Math.abs(20 * Math.log10(lo1 / lo0)) < 1, 'low band untouched')
+	ok(20 * Math.log10(hi1 / hi0) < -6, 'high band compressed ≥6 dB')
+	ok(d.every(isFinite), 'no NaN')
+})

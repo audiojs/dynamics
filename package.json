@@ -70,6 +70,7 @@
     "@audio/dynamics-ducker": "^0.1.0",
     "@audio/dynamics-softclip": "^0.1.0",
     "@audio/dynamics-compand": "^0.1.0",
-    "@audio/dynamics-transient-shaper": "^0.1.0"
+    "@audio/dynamics-transient-shaper": "^0.1.0",
+    "@audio/dynamics-multiband": "^0.1.0"
   }
 }

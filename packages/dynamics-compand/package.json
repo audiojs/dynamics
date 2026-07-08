@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-compand",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Multi-segment compander (SoX `compand`). Arbitrary piecewise-linear transfer",
   "type": "module",
   "sideEffects": false,

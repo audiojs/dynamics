@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-leveler",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Gain riding / dialogue leveler — framewise smoothed loudness normalization (dynaudnorm / Vocal Rider class)",
   "type": "module",
   "sideEffects": false,

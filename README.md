@@ -1,4 +1,4 @@
-## @audio/dynamics [![test](https://github.com/audiojs/dynamics-processor/actions/workflows/test.yml/badge.svg)](https://github.com/audiojs/dynamics-processor/actions/workflows/test.yml) [![npm](https://img.shields.io/npm/v/@audio/dynamics)](https://npmjs.org/dynamics-processor) [![license](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/audiojs/dynamics-processor/blob/main/LICENSE)
+## @audio/dynamics [![test](https://github.com/audiojs/dynamics/actions/workflows/test.yml/badge.svg)](https://github.com/audiojs/dynamics/actions/workflows/test.yml) [![npm](https://img.shields.io/npm/v/@audio/dynamics)](https://npmjs.org/dynamics-processor) [![license](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/audiojs/dynamics/blob/main/LICENSE)
 
 Dynamics processing — compressor, limiter, gate, expander, de-esser, ducker, softclip, compand. All built on a single branching envelope follower; differences are purely in the gain curve. Part of [audiojs](https://github.com/audiojs).
 
@@ -254,10 +254,10 @@ compand(data, {
 
 ## See also
 
-* [noise-reduction](https://github.com/audiojs/noise-reduction) — gate belongs here too; umbrella for everything noise
-* [audio-filter](https://github.com/audiojs/audio-filter) — biquads for deesser sidechain
-* [audio-effect](https://github.com/audiojs/audio-effect) — modulation effects
-* [time-stretch](https://github.com/audiojs/time-stretch) — sibling package
+* [denoise](https://github.com/audiojs/denoise) — gate belongs here too; umbrella for everything noise
+* [filter](https://github.com/audiojs/filter) — biquads for deesser sidechain
+* [effect](https://github.com/audiojs/effect) — modulation effects
+* [stretch](https://github.com/audiojs/stretch) — sibling package
 
 
 ## References
@@ -271,6 +271,6 @@ compand(data, {
 
 <div align="center">
 
-[MIT](https://github.com/audiojs/dynamics-processor/blob/main/LICENSE) [ॐ](https://github.com/krishnized/license)
+[MIT](https://github.com/audiojs/dynamics/blob/main/LICENSE) [ॐ](https://github.com/krishnized/license)
 
 </div>

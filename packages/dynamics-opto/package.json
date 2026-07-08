@@ -28,12 +28,12 @@
   "author": "Dmitry Iv. <dfcreative@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/audiojs/dynamics-processor.git",
+    "url": "git+https://github.com/audiojs/dynamics.git",
     "directory": "packages/dynamics-opto"
   },
-  "homepage": "https://github.com/audiojs/dynamics-processor/tree/main/packages/dynamics-opto",
+  "homepage": "https://github.com/audiojs/dynamics/tree/main/packages/dynamics-opto",
   "bugs": {
-    "url": "https://github.com/audiojs/dynamics-processor/issues"
+    "url": "https://github.com/audiojs/dynamics/issues"
   },
   "engines": {
     "node": ">=18"

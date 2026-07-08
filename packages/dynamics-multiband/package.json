@@ -1,7 +1,7 @@
 {
   "name": "@audio/dynamics-multiband",
   "version": "0.1.0",
-  "description": "Multiband compressor — Linkwitz-Riley split + per-band soft-knee compression, flat sum (SoX mcompand class)",
+  "description": "Multiband compressor \u2014 Linkwitz-Riley split + per-band soft-knee compression, flat sum (SoX mcompand class)",
   "type": "module",
   "sideEffects": false,
   "main": "multiband.js",
@@ -13,7 +13,7 @@
     "multiband.js"
   ],
   "dependencies": {
-    "@audio/eq-crossover": "file:../../../eq/packages/eq-crossover",
+    "@audio/eq-crossover": "^1.0.0",
     "@audio/dynamics-compressor": "^0.1.0",
     "@audio/dynamics-core": "^0.1.0"
   },

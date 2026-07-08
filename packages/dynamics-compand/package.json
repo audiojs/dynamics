@@ -7,10 +7,12 @@
   "main": "compand.js",
   "exports": {
     ".": "./compand.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./audio-module": "./audio-module.js"
   },
   "files": [
-    "compand.js"
+    "compand.js",
+    "audio-module.js"
   ],
   "dependencies": {
     "@audio/dynamics-core": "^0.1.0",

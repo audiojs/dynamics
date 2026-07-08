@@ -7,10 +7,12 @@
   "main": "transient-shaper.js",
   "exports": {
     ".": "./transient-shaper.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./audio-module": "./audio-module.js"
   },
   "files": [
-    "transient-shaper.js"
+    "transient-shaper.js",
+    "audio-module.js"
   ],
   "keywords": [
     "audio",

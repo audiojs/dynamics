@@ -7,10 +7,12 @@
   "main": "ducker.js",
   "exports": {
     ".": "./ducker.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./audio-module": "./audio-module.js"
   },
   "files": [
-    "ducker.js"
+    "ducker.js",
+    "audio-module.js"
   ],
   "dependencies": {
     "@audio/dynamics-core": "^0.1.0",

@@ -7,10 +7,12 @@
   "main": "leveler.js",
   "exports": {
     ".": "./leveler.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./audio-module": "./audio-module.js"
   },
   "files": [
-    "leveler.js"
+    "leveler.js",
+    "audio-module.js"
   ],
   "dependencies": {
     "@audio/dynamics-core": "^0.1.0"

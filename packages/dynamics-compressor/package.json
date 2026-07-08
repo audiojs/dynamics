@@ -7,10 +7,12 @@
   "main": "compressor.js",
   "exports": {
     ".": "./compressor.js",
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./am": "./am.js"
   },
   "files": [
-    "compressor.js"
+    "compressor.js",
+    "am.js"
   ],
   "dependencies": {
     "@audio/dynamics-core": "^0.1.0",
@@ -38,5 +40,6 @@
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "audio-module": "./am.js"
 }

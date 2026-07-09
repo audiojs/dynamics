@@ -1,20 +1,18 @@
 {
   "name": "@audio/dynamics-core",
-  "version": "0.1.0",
-  "description": "Shared dynamics primitives — dB/linear conversion, time-constant coefficients, stream writers, biquad sidechain filters",
+  "version": "0.2.0",
+  "description": "Shared dynamics primitives — dB/linear conversion, time-constant coefficients, stream writers",
   "type": "module",
   "sideEffects": false,
   "main": "index.js",
   "exports": {
     ".": "./index.js",
     "./package.json": "./package.json",
-    "./util": "./util.js",
-    "./biquad": "./biquad.js"
+    "./util": "./util.js"
   },
   "files": [
     "index.js",
-    "util.js",
-    "biquad.js"
+    "util.js"
   ],
   "keywords": [
     "audio",

@@ -4,7 +4,7 @@
 
 import crossover from '@audio/eq-crossover'
 import compressor from '@audio/dynamics-compressor'
-import { biquad, biquadState } from '@audio/dynamics-core'
+import { step, state } from '@audio/biquad'
 
 /**
  * @param {Float32Array} data — mono PCM, processed in place
@@ -23,8 +23,8 @@ export default function multiband (data, { freqs = [200, 2000], bands, order = 4
 	for (let b = 0; b < sos.length; b++) {
 		let band = Float32Array.from(data)
 		for (let sec of sos[b]) {
-			let st = biquadState()
-			for (let i = 0; i < band.length; i++) band[i] = biquad(sec, st, band[i])
+			let st = state()
+			for (let i = 0; i < band.length; i++) band[i] = step(sec, st, band[i])
 		}
 		let params = Array.isArray(bands) ? bands[b] : bands
 		if (params) band = compressor(band, { fs, ...params })

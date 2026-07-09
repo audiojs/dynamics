@@ -1,5 +1,5 @@
 import { envelope } from '@audio/dynamics-envelope'
-import { bandpass, biquad, biquadState } from '@audio/dynamics-core'
+import { bandpass, step, state } from '@audio/biquad'
 import { compressorGain } from '@audio/dynamics-compressor'
 import { writer, concat, db2lin, lin2db } from '@audio/dynamics-core'
 
@@ -19,8 +19,8 @@ export function deesserStream(opts = {}) {
   let ratio = opts.ratio ?? 4
   let knee = opts.knee ?? 6
 
-  let bp = bandpass(sr, freq, q)
-  let state = biquadState()
+  let bp = bandpass(freq, q, sr)
+  let bqState = state()
   let env = envelope({ sampleRate: sr, attack: opts.attack ?? 1, release: opts.release ?? 40, detector: opts.detector })
 
   return {
@@ -28,7 +28,7 @@ export function deesserStream(opts = {}) {
       let out = new Float32Array(chunk.length)
       for (let i = 0; i < chunk.length; i++) {
         let x = chunk[i]
-        let side = biquad(bp, state, x)
+        let side = step(bp, bqState, x)
         let rDb = compressorGain(lin2db(env(side)), threshold, ratio, knee)
         out[i] = x * db2lin(rDb)
       }

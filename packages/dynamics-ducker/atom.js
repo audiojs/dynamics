@@ -1,4 +1,4 @@
-// audio-module manifest — wraps the external-sidechain ducker kernel per @audio/module
+// atom manifest — wraps the external-sidechain ducker kernel per @audio/atom
 // CONTRACT §channels. The kernel cleanly separates the key input (duckerStream.write(main,
 // side) takes two distinct signals), so this declares a genuine two-bus layout: main +
 // sidechain in, main out — mirrors the compressor pilot's live-param style (compressorGain

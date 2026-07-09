@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-leveler",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Gain riding / dialogue leveler — framewise smoothed loudness normalization (dynaudnorm / Vocal Rider class)",
   "type": "module",
   "sideEffects": false,
@@ -8,11 +8,11 @@
   "exports": {
     ".": "./leveler.js",
     "./package.json": "./package.json",
-    "./audio-module": "./audio-module.js"
+    "./atom": "./atom.js"
   },
   "files": [
     "leveler.js",
-    "audio-module.js"
+    "atom.js"
   ],
   "dependencies": {
     "@audio/dynamics-core": "^0.1.0"

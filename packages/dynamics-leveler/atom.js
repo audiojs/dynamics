@@ -1,4 +1,4 @@
-// audio-module manifest — wraps the dynaudnorm-style frame leveler per @audio/module CONTRACT.
+// atom manifest — wraps the dynaudnorm-style frame leveler per @audio/atom CONTRACT.
 // The kernel is genuinely non-causal, not merely lookahead-delayed: its gaussian
 // smoothing window looks both back AND forward across frames (±`smooth` frames), and
 // frame count/gain envelope are derived from the FULL signal length up front — there

@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-gate",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Noise gate with hold-then-close logic and smoothed gain transitions",
   "type": "module",
   "sideEffects": false,
@@ -8,11 +8,11 @@
   "exports": {
     ".": "./gate.js",
     "./package.json": "./package.json",
-    "./audio-module": "./audio-module.js"
+    "./atom": "./atom.js"
   },
   "files": [
     "gate.js",
-    "audio-module.js"
+    "atom.js"
   ],
   "dependencies": {
     "@audio/dynamics-core": "^0.1.0",

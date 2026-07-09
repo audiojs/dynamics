@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-ducker",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "External-sidechain compressor: main signal's gain is reduced in proportion",
   "type": "module",
   "sideEffects": false,
@@ -8,11 +8,11 @@
   "exports": {
     ".": "./ducker.js",
     "./package.json": "./package.json",
-    "./audio-module": "./audio-module.js"
+    "./atom": "./atom.js"
   },
   "files": [
     "ducker.js",
-    "audio-module.js"
+    "atom.js"
   ],
   "dependencies": {
     "@audio/dynamics-core": "^0.1.0",

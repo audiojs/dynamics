@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-compressor",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Feed-forward soft-knee compressor (Giannoulis-Massberg topology)",
   "type": "module",
   "sideEffects": false,
@@ -8,11 +8,11 @@
   "exports": {
     ".": "./compressor.js",
     "./package.json": "./package.json",
-    "./audio-module": "./audio-module.js"
+    "./atom": "./atom.js"
   },
   "files": [
     "compressor.js",
-    "audio-module.js"
+    "atom.js"
   ],
   "dependencies": {
     "@audio/dynamics-core": "^0.1.0",
@@ -41,5 +41,5 @@
   "publishConfig": {
     "access": "public"
   },
-  "audio-module": "./audio-module.js"
+  "atom": "./atom.js"
 }

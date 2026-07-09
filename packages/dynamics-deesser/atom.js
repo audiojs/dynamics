@@ -1,4 +1,4 @@
-// audio-module manifest — wraps the de-esser kernel per @audio/module CONTRACT.
+// atom manifest — wraps the de-esser kernel per @audio/atom CONTRACT.
 // Bandpass sidechain drives broadband gain reduction; all params seed the
 // stream at construction (flags: restart).
 

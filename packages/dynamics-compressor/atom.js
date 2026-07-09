@@ -1,4 +1,4 @@
-// audio-module manifest — wraps the dynamics compressor kernel per @audio/module CONTRACT.
+// atom manifest — wraps the dynamics compressor kernel per @audio/atom CONTRACT.
 // attack/release seed the envelope at construction (flags: restart); the rest are live.
 
 import { envelope } from '@audio/dynamics-envelope'

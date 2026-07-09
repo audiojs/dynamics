@@ -1,17 +1,19 @@
 {
   "name": "@audio/dynamics-varimu",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Vari-Mu compressor model — feedback detection, drive-dependent ratio, soft wide knee (Fairchild class)",
   "type": "module",
   "sideEffects": false,
   "main": "varimu.js",
   "exports": {
     ".": "./varimu.js",
+    "./atom": "./atom.js",
     "./package.json": "./package.json"
   },
   "files": [
     "varimu.js",
-    "util.js"
+    "util.js",
+    "atom.js"
   ],
   "dependencies": {
     "@audio/dynamics-envelope": "^0.1.0",
@@ -40,5 +42,6 @@
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "atom": "./atom.js"
 }

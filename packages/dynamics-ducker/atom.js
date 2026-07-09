@@ -12,7 +12,7 @@
 
 import { envelope } from '@audio/dynamics-envelope'
 import { compressorGain } from '@audio/dynamics-compressor'
-import { db2lin, lin2db } from '@audio/dynamics-core'
+import { db2lin, lin2db } from './util.js'
 
 export const ducker = (ctx) => {
 	const envs = []

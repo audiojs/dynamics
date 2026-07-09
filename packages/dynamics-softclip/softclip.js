@@ -1,4 +1,4 @@
-import { writer, clamp } from '@audio/dynamics-core'
+import { writer, clamp } from './util.js'
 
 // Static waveshaping — no envelope, no time state. Deterministic per-sample
 // transfer curve. For controlling peaks without pumping; preferred over

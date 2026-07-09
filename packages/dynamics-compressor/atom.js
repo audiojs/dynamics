@@ -3,7 +3,7 @@
 
 import { envelope } from '@audio/dynamics-envelope'
 import { compressorGain } from './compressor.js'
-import { db2lin, lin2db } from '@audio/dynamics-core'
+import { db2lin, lin2db } from './util.js'
 
 export const compressor = (ctx) => {
 	const envs = []

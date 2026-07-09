@@ -1,6 +1,6 @@
 import { envelope } from '@audio/dynamics-envelope'
 import { compressorGain } from '@audio/dynamics-compressor'
-import { writer2, concat, db2lin, lin2db } from '@audio/dynamics-core'
+import { writer2, concat, db2lin, lin2db } from './util.js'
 
 // External-sidechain compressor: main signal's gain is reduced in proportion
 // to the level of a separate side signal (e.g. voice track ducking music).

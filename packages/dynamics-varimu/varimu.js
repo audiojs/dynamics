@@ -2,7 +2,7 @@
 // output), very soft wide knee, slow attack, and ratio that grows with drive (the "mu").
 import { envelope } from '@audio/dynamics-envelope'
 import { compressorGain } from '@audio/dynamics-compressor'
-import { writer, concat, db2lin, lin2db, timeCoef } from '@audio/dynamics-core'
+import { writer, concat, db2lin, lin2db, timeCoef } from './util.js'
 
 export default function varimu (data, opts) {
 	if (!(data instanceof Float32Array)) return writer(varimuStream(data))

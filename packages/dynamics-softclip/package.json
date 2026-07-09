@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-softclip",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Static waveshaping — no envelope, no time state. Deterministic per-sample",
   "type": "module",
   "sideEffects": false,
@@ -12,11 +12,9 @@
   },
   "files": [
     "softclip.js",
-    "atom.js"
+    "atom.js",
+    "util.js"
   ],
-  "dependencies": {
-    "@audio/dynamics-core": "^0.1.0"
-  },
   "keywords": [
     "audio",
     "dsp",

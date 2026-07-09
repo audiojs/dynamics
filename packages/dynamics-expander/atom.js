@@ -5,7 +5,7 @@
 
 import { envelope } from '@audio/dynamics-envelope'
 import { expanderGain } from './expander.js'
-import { db2lin, lin2db } from '@audio/dynamics-core'
+import { db2lin, lin2db } from './util.js'
 
 export const expander = (ctx) => {
 	const envs = []

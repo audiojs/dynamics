@@ -1,7 +1,7 @@
 // Gain riding / dialogue leveler (FFmpeg dynaudnorm, Vocal Rider class):
 // framewise RMS → gain toward target, gaussian-smoothed across frames, peak-guarded,
 // linearly interpolated between frame centers. Batch, non-causal by design.
-import { db2lin, lin2db } from '@audio/dynamics-core'
+import { db2lin, lin2db } from './util.js'
 
 export default function leveler (data, { fs = 44100, target = -20, frame = 0.5, maxGain = 12, smooth = 5 } = {}) {
 	let win = Math.max(1, Math.round(frame * fs))

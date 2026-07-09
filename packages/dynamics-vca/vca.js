@@ -2,7 +2,7 @@
 // near-hard knee, precise dB-linear gain computation. The transparent workhorse.
 import { envelope } from '@audio/dynamics-envelope'
 import { compressorGain } from '@audio/dynamics-compressor'
-import { writer, concat, db2lin, lin2db, timeCoef } from '@audio/dynamics-core'
+import { writer, concat, db2lin, lin2db, timeCoef } from './util.js'
 
 export default function vca (data, opts) {
 	if (!(data instanceof Float32Array)) return writer(vcaStream(data))

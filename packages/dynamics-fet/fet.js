@@ -2,7 +2,7 @@
 // fixed-style high ratios, firm knee. Character = speed, not color.
 import { envelope } from '@audio/dynamics-envelope'
 import { compressorGain } from '@audio/dynamics-compressor'
-import { writer, concat, db2lin, lin2db, timeCoef } from '@audio/dynamics-core'
+import { writer, concat, db2lin, lin2db, timeCoef } from './util.js'
 
 export default function fet (data, opts) {
 	if (!(data instanceof Float32Array)) return writer(fetStream(data))

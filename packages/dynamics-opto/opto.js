@@ -2,7 +2,7 @@
 // T4 signature: program-dependent release that slows the longer gain reduction persists.
 import { envelope } from '@audio/dynamics-envelope'
 import { compressorGain } from '@audio/dynamics-compressor'
-import { writer, concat, db2lin, lin2db, timeCoef } from '@audio/dynamics-core'
+import { writer, concat, db2lin, lin2db, timeCoef } from './util.js'
 
 export default function opto (data, opts) {
 	if (!(data instanceof Float32Array)) return writer(optoStream(data))

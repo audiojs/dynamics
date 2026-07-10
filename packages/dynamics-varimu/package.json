@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-varimu",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Vari-Mu compressor model — feedback detection, drive-dependent ratio, soft wide knee (Fairchild class)",
   "type": "module",
   "sideEffects": false,

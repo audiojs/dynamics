@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-ducker",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "External-sidechain compressor: main signal's gain is reduced in proportion",
   "type": "module",
   "sideEffects": false,

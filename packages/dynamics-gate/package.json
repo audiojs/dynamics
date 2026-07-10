@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-gate",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Noise gate with hold-then-close logic and smoothed gain transitions",
   "type": "module",
   "sideEffects": false,

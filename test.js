@@ -156,6 +156,35 @@ test('gate — passes signal above threshold', () => {
   almost(rms(out), rms(loud), rms(loud) * 0.1, 'passes')
 })
 
+test('gate — hysteresis: level inside the open/close band holds the gate open', () => {
+  let loud = sine(1000, fs >> 3, 0.5)                     // -6 dB opens the gate
+  let mid = sine(1000, fs >> 1, 0.007)                    // ≈ -43 dB: inside (-46, -40)
+  let x = new Float32Array([...loud, ...mid])
+  let opts = { threshold: -40, range: -80, hold: 0, attack: 0.1, release: 1 }
+  let hyst = gate(x, { ...opts, closeThreshold: -46 })
+  let tail = hyst.subarray(loud.length + (fs >> 3))       // well past the transition
+  let ref = mid.subarray(fs >> 3)
+  almost(rms(tail), rms(ref), rms(ref) * 0.15, 'stays open inside hysteresis band')
+  let flat = gate(x, { ...opts, closeThreshold: -40 })    // no hysteresis: close == open
+  ok(rms(flat.subarray(loud.length + (fs >> 3))) < rms(ref) * 0.1, 'same level closes without hysteresis')
+})
+
+test('gate — look-ahead opens before the transient; batch stays sample-aligned', () => {
+  let pre = new Float32Array(fs >> 2)                     // silence
+  let burst = sine(1000, fs >> 2, 0.5)
+  let x = new Float32Array([...pre, ...burst])
+  let opts = { threshold: -40, range: -80, hold: 0, attack: 5, release: 10 }
+  let noLa = gate(x, opts)
+  let la = gate(x, { ...opts, lookahead: 5 })
+  is(la.length, x.length, 'length preserved (write + flush covers the signal)')
+  let onset = Math.round(0.002 * fs)                      // first 2 ms of the burst
+  ok(rms(la.subarray(pre.length, pre.length + onset)) > rms(noLa.subarray(pre.length, pre.length + onset)) * 2,
+    'onset preserved vs no look-ahead')
+  let steady = rms(burst.subarray(fs / 20 | 0))
+  almost(rms(la.subarray(pre.length + (fs / 20 | 0))), steady, steady * 0.1, 'steady state passes')
+  ok(rms(la.subarray(0, pre.length - Math.round(0.005 * fs))) < 1e-4, 'silence stays gated, no delay-line garbage')
+})
+
 
 // --- expander ---
 
@@ -185,6 +214,17 @@ test('deesser — attenuates HF band, passes LF', () => {
   let sib = sine(6500, fs >> 1, 0.5)
   let outSib = deesser(sib, { freq: 6500, threshold: -30, ratio: 8, attack: 1, release: 5 })
   ok(rms(outSib) < rms(sib) * 0.8, 'sibilance reduced')
+})
+
+test('deesser — band mode cuts only the sibilance band (dynamic peaking EQ)', () => {
+  let n = fs >> 1, x = new Float32Array(n)
+  for (let i = 0; i < n; i++) x[i] = 0.3 * Math.sin(2 * Math.PI * 220 * i / fs) + 0.3 * Math.sin(2 * Math.PI * 7000 * i / fs)
+  let opts = { freq: 7000, threshold: -30, ratio: 8, attack: 1, release: 20 }
+  let band = deesser(x, { ...opts, mode: 'band' })
+  ok(energyAt(band, 7000) < energyAt(x, 7000) * 0.7, 'sibilance band cut')
+  ok(energyAt(band, 220) > energyAt(x, 220) * 0.9, 'program below the band untouched')
+  let broad = deesser(x, { ...opts, mode: 'broadband' })
+  ok(energyAt(band, 220) > energyAt(broad, 220), 'band mode preserves LF better than broadband at equal drive')
 })
 
 

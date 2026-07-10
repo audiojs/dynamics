@@ -1,6 +1,7 @@
 // atom manifest — wraps the de-esser kernel per @audio/compile CONTRACT.
-// Bandpass sidechain drives broadband gain reduction; all params seed the
-// stream at construction (flags: restart).
+// `mode` picks the architecture: broadband (bandpass sidechain → broadband
+// gain reduction) or band (HP sidechain → dynamic peaking-EQ cut at freq).
+// All params seed the stream at construction (flags: restart).
 
 import { deesserStream } from './deesser.js'
 
@@ -8,6 +9,7 @@ export const deesser = (ctx) => {
 	const streams = []
 	const opts = {
 		sampleRate: ctx.sampleRate,
+		mode: ctx.params.mode,
 		freq: ctx.params.freq[0],
 		q: ctx.params.q[0],
 		threshold: ctx.params.threshold[0],
@@ -25,6 +27,7 @@ export const deesser = (ctx) => {
 }
 deesser.channels = 'any'
 deesser.params = {
+	mode:      { type: 'enum', values: ['broadband', 'band'], default: 'broadband', flags: ['restart'] },
 	freq:      { type: 'number', min: 2000, max: 16000, default: 6500, unit: 'Hz', flags: ['restart'] },
 	q:         { type: 'number', min: 0.3, max: 10, default: 2, flags: ['restart'] },
 	threshold: { type: 'number', min: -60, max: 0, default: -20, unit: 'dB', flags: ['restart'] },

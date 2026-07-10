@@ -105,22 +105,24 @@ limiter(data, { ceiling: -1, lookahead: 10, release: 100 })
 
 ## gate
 
-Noise gate with hold-then-close logic. Below threshold, signal is attenuated by `range` dB. A `hold` timer keeps the gate open after a drop-out to avoid chatter; attack/release smooth the gain transitions.
+Noise gate with hysteresis, hold-then-close logic and look-ahead. Opens above `threshold`, closes only below `closeThreshold` (hysteresis prevents chatter around a single threshold); below it, signal is attenuated by `range` dB. A `hold` timer keeps the gate open after a drop-out; attack/release smooth the gain transitions. `lookahead` runs detection ahead of emission so the gate is already opening when a transient reaches the output — batch calls stay sample-aligned (no silence prefix, no dropped tail); block hosts get the delay declared as atom `latency`.
 
 ```js
 import { gate } from '@audio/dynamics'
 
 gate(data, { threshold: -40 })
-gate(data, { threshold: -35, range: -80, hold: 20, attack: 1, release: 150 })
+gate(data, { threshold: -35, range: -80, hold: 20, attack: 1, release: 150, lookahead: 5 })
 ```
 
 | Param | Default | |
 |---|---|---|
-| `threshold` | `-40` | dB |
+| `threshold` | `-40` | dB, open above |
+| `closeThreshold` | `threshold − 6` | dB, close below (hysteresis) |
 | `range` | `-60` | dB attenuation when closed |
 | `hold` | `10` | ms |
 | `attack` | `0.1` | ms (opening) |
 | `release` | `100` | ms (closing) |
+| `lookahead` | `0` | ms, detection leads emission |
 
 **Use when:** drum mics, voice dialogue with ambient noise, removing hiss between phrases.<br>
 **Not for:** subtle low-level reduction — use [expander](#expander).
@@ -151,26 +153,28 @@ expander(data, { threshold: -30, ratio: 2 })
 
 ## deesser
 
-Sibilance compressor. A biquad bandpass drives the envelope follower; the resulting gain reduction is applied broadband. Simple and transparent.
+Sibilance reduction, two architectures behind `mode`: **broadband** (default) — a biquad bandpass drives the envelope follower and the gain reduction is applied broadband; simple and transparent. **band** — an HP-filtered sidechain drives a dynamic peaking EQ at `freq`, so only the sibilance band is cut and program below it stays untouched even during deep reduction (wideband/split-band precedent).
 
 ```js
 import { deesser } from '@audio/dynamics'
 
 deesser(data, { freq: 6500, threshold: -20 })
 deesser(data, { freq: 5500, q: 3, threshold: -24, ratio: 6 })
+deesser(data, { mode: 'band', freq: 7000, threshold: -30, ratio: 8 })
 ```
 
 | Param | Default | |
 |---|---|---|
+| `mode` | `'broadband'` | `'broadband'` \| `'band'` |
 | `freq` | `6500` | Hz, sibilance center |
-| `q` | `2` | bandpass Q |
+| `q` | `2` | bandpass Q (broadband) / `1.4` peaking-cut Q (band) |
 | `threshold` | `-20` | dB (on sidechain level) |
 | `ratio` | `4` | — |
-| `knee` | `6` | dB |
+| `knee` | `6` | dB (broadband only) |
 | `attack` | `1` | ms |
 | `release` | `40` | ms |
 
-**Use when:** harsh 's' / 't' / 'sh' in close-miked voice, bright vocal takes.<br>
+**Use when:** harsh 's' / 't' / 'sh' in close-miked voice, bright vocal takes; `mode: 'band'` when the voice sits with program that must not pump.<br>
 **Not for:** broadband brightness — use an EQ. Generic compression — use [compressor](#compressor).
 
 
@@ -254,7 +258,7 @@ compand(data, {
 
 ## See also
 
-* [denoise](https://github.com/audiojs/denoise) — gate belongs here too; umbrella for everything noise
+* [denoise](https://github.com/audiojs/denoise) — umbrella for everything noise; its `gate`/`deesser` are seconds-unit adapters over this package (2026-07 near-dupe merge)
 * [filter](https://github.com/audiojs/filter) — biquads for deesser sidechain
 * [effect](https://github.com/audiojs/effect) — modulation effects
 * [stretch](https://github.com/audiojs/stretch) — sibling package

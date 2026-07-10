@@ -8,11 +8,15 @@
   "exports": {
     ".": "./transient-shaper.js",
     "./package.json": "./package.json",
-    "./audio": "./audio.js"
+    "./audio": {
+      "types": "./audio.d.ts",
+      "default": "./audio.js"
+    }
   },
   "files": [
     "transient-shaper.js",
-    "audio.js"
+    "audio.js",
+    "audio.d.ts"
   ],
   "keywords": [
     "audio",

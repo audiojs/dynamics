@@ -7,12 +7,16 @@
   "main": "multiband.js",
   "exports": {
     ".": "./multiband.js",
-    "./audio": "./audio.js",
+    "./audio": {
+      "types": "./audio.d.ts",
+      "default": "./audio.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
     "multiband.js",
-    "audio.js"
+    "audio.js",
+    "audio.d.ts"
   ],
   "dependencies": {
     "@audio/eq-crossover": "^1.0.0",

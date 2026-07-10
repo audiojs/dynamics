@@ -8,12 +8,16 @@
   "exports": {
     ".": "./leveler.js",
     "./package.json": "./package.json",
-    "./audio": "./audio.js"
+    "./audio": {
+      "types": "./audio.d.ts",
+      "default": "./audio.js"
+    }
   },
   "files": [
     "leveler.js",
     "audio.js",
-    "util.js"
+    "util.js",
+    "audio.d.ts"
   ],
   "keywords": [
     "audio",

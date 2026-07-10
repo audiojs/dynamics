@@ -8,12 +8,16 @@
   "exports": {
     ".": "./ducker.js",
     "./package.json": "./package.json",
-    "./audio": "./audio.js"
+    "./audio": {
+      "types": "./audio.d.ts",
+      "default": "./audio.js"
+    }
   },
   "files": [
     "ducker.js",
     "audio.js",
-    "util.js"
+    "util.js",
+    "audio.d.ts"
   ],
   "dependencies": {
     "@audio/dynamics-envelope": "^0.1.0",

@@ -65,16 +65,17 @@
     "@audio/dynamics-limiter": "^0.1.0",
     "@audio/dynamics-gate": "^0.1.0",
     "@audio/dynamics-expander": "^0.2.0",
-    "@audio/dynamics-deesser": "^0.1.0",
+    "@audio/dynamics-deesser": "^0.2.0",
     "@audio/dynamics-ducker": "^0.1.0",
     "@audio/dynamics-softclip": "^0.2.0",
     "@audio/dynamics-compand": "^0.1.0",
     "@audio/dynamics-transient-shaper": "^0.1.0",
     "@audio/dynamics-multiband": "^0.4.0",
-    "@audio/dynamics-opto": "^0.1.0",
-    "@audio/dynamics-fet": "^0.1.0",
-    "@audio/dynamics-vca": "^0.1.0",
-    "@audio/dynamics-varimu": "^0.1.0",
-    "@audio/dynamics-leveler": "^0.1.0"
+    "@audio/dynamics-opto": "^0.2.0",
+    "@audio/dynamics-fet": "^0.2.0",
+    "@audio/dynamics-vca": "^0.2.0",
+    "@audio/dynamics-varimu": "^0.2.0",
+    "@audio/dynamics-leveler": "^0.1.0",
+    "@audio/dynamics-unlimit": "^0.1.0"
   }
 }

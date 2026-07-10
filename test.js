@@ -1,5 +1,5 @@
 import test, { almost, ok, is } from 'tst'
-import { compressor, limiter, gate, expander, deesser, ducker, softclip, compand, envelope, transientShaper, multiband, opto, fet, vca, varimu, leveler } from './index.js'
+import { compressor, limiter, gate, expander, unlimit, deesser, ducker, softclip, compand, envelope, transientShaper, multiband, opto, fet, vca, varimu, leveler } from './index.js'
 
 const fs = 44100
 
@@ -273,6 +273,129 @@ test('expander upward — below threshold untouched', () => {
 })
 
 
+// --- unlimit (de-limiter — classical counterpart to iZotope Ozone 12's "Unlimiter";
+// transient-gated upward expansion restoring crest a brickwall limiter flattened;
+// see expander.js's upwardExpanderGain, the curve substrate this atom reuses) ---
+
+// Deterministic "drummy" fixture: 8 decaying-sine hits (kick-like) + a hat-like seeded-
+// noise layer, ~2s. LCG noise matches the org convention (@audio/mir test.js's kick/
+// snare/hat fixtures): r = (r·1664525 + 1013904223) mod 2³², mapped to [-1, 1).
+function drumHit(n, sr) {
+  let d = new Float32Array(n)
+  for (let i = 0; i < n; i++) { let t = i / sr; d[i] = Math.exp(-t * 30) * Math.sin(2 * Math.PI * 80 * t) }
+  return d
+}
+function hatHit(n, sr, seed) {
+  let d = new Float32Array(n), r = seed >>> 0
+  for (let i = 0; i < n; i++) {
+    let t = i / sr
+    r = (r * 1664525 + 1013904223) >>> 0
+    d[i] = Math.exp(-t * 60) * (r / 2147483648 - 1)
+  }
+  return d
+}
+function drummy(sr = fs, seed = 12345, hitGain = 1, hatGain = 0.35, spacing = 0.235) {
+  let n = Math.round(2 * sr), d = new Float32Array(n)
+  let hitLen = Math.round(0.15 * sr)
+  for (let h = 0; h < 8; h++) {
+    let at = Math.round((0.1 + h * spacing) * sr)
+    let dh = drumHit(hitLen, sr), hh = hatHit(hitLen, sr, seed + h * 101)
+    for (let i = 0; i < hitLen && at + i < n; i++) d[at + i] += dh[i] * hitGain + hh[i] * hatGain
+  }
+  return d
+}
+const crestDb = (d) => db(peak(d)) - db(rms(d))
+function pearson(a, b) {
+  let n = Math.min(a.length, b.length), ma = 0, mb = 0
+  for (let i = 0; i < n; i++) { ma += a[i]; mb += b[i] }
+  ma /= n; mb /= n
+  let num = 0, da = 0, dbb = 0
+  for (let i = 0; i < n; i++) { let xa = a[i] - ma, xb = b[i] - mb; num += xa * xb; da += xa * xa; dbb += xb * xb }
+  return num / Math.sqrt(da * dbb)
+}
+function envFrames(d, sr, frameMs = 5) {
+  let fl = Math.round(frameMs * 0.001 * sr), n = Math.floor(d.length / fl)
+  let out = new Float64Array(n)
+  for (let f = 0; f < n; f++) out[f] = rmsOf(d, f * fl, (f + 1) * fl)
+  return out
+}
+// Aggressive brickwall drive shared by the recovery tests below — crest drops ≥6 dB
+// (checked explicitly), well past the ≥6 dB the test spec requires.
+const UNLIMIT_TEST_LIMITER = { ceiling: -26, lookahead: 1, release: 8 }
+
+test('unlimit — crest restoration: recovers toward original after heavy limiting', () => {
+  let d = drummy()
+  let origCrest = crestDb(d)
+  let lim = limiter(d, UNLIMIT_TEST_LIMITER)
+  let limCrest = crestDb(lim)
+  ok(origCrest - limCrest >= 6, `fixture: limiter drops crest ${(origCrest - limCrest).toFixed(2)} dB (need ≥6)`)
+  let out = unlimit(lim, { amount: 9, drive: 2 })
+  let unCrest = crestDb(out)
+  ok(unCrest >= limCrest + 3, `restored ${unCrest.toFixed(2)} dB ≥ limited+3 (${(limCrest + 3).toFixed(2)})`)
+  ok(unCrest <= origCrest + 1, `restored ${unCrest.toFixed(2)} dB ≤ original+1 (${(origCrest + 1).toFixed(2)}); recovers toward, never overshoots absurdly`)
+})
+
+test('unlimit — envelope-shape recovery: 5ms envelope correlates better with original than the limited signal does', () => {
+  let d = drummy()
+  let lim = limiter(d, UNLIMIT_TEST_LIMITER)
+  let out = unlimit(lim, { amount: 9, drive: 2 })
+  let eOrig = envFrames(d, fs), eLim = envFrames(lim, fs), eOut = envFrames(out, fs)
+  let rLim = pearson(eOrig, eLim), rOut = pearson(eOrig, eOut)
+  ok(rOut - rLim >= 0.05, `Pearson r ${rLim.toFixed(3)} → ${rOut.toFixed(3)} (Δ${(rOut - rLim).toFixed(3)}, need ≥0.05) — "it moves again"`)
+})
+
+test('unlimit — near-identity on already-dynamic material (default settings)', () => {
+  let d = drummy()
+  let out = unlimit(d, {})
+  let dRms = db(rms(out)) - db(rms(d)), dPeak = db(peak(out)) - db(peak(d))
+  ok(Math.abs(dRms) <= 0.5, `rms Δ${dRms.toFixed(3)} dB (≤0.5)`)
+  ok(Math.abs(dPeak) <= 1, `peak Δ${dPeak.toFixed(3)} dB (≤1) — transient detector fires, but the lift stays small relative`)
+})
+
+test('unlimit — sustained tone untouched (no transients, no lift)', () => {
+  let t = sine(440, fs, 0.5)
+  let out = unlimit(t, {})
+  let half = fs >> 1   // skip the first 0.5s so the detector has settled
+  let delta = db(rmsOf(out, half)) - db(rmsOf(t, half))
+  almost(delta, 0, 0.1, `steady-state Δ${delta.toFixed(4)} dB`)
+})
+
+test('unlimit — amount: 0 is bit-exact identity', () => {
+  let d = drummy()
+  let out = unlimit(d, { amount: 0 })
+  is(out.length, d.length)
+  for (let i = 0; i < d.length; i++) if (out[i] !== d[i]) throw new Error(`diverges at ${i}: ${d[i]} vs ${out[i]}`)
+  ok(true, 'identical')
+})
+
+test('unlimit — ceiling guards restored peaks', () => {
+  let d = drummy(fs, 999, 3, 1)   // hotter fixture + aggressive drive: forces overshoot without a ceiling
+  let out = unlimit(d, { amount: 9, drive: 3, ceiling: -1 })
+  let ceilLin = Math.pow(10, -1 / 20)
+  ok(peak(out) <= ceilLin * Math.pow(10, 0.1 / 20), `peak ${db(peak(out)).toFixed(3)} dB ≤ -1 + 0.1 dB`)
+})
+
+test('unlimit — streaming matches batch; deterministic; no NaN', () => {
+  let d = drummy()
+  let opts = { amount: 9, drive: 3 }
+  let batch = unlimit(d, opts)
+  let write = unlimit(opts)
+  let a = write(d.subarray(0, 30000))
+  let b = write(d.subarray(30000))
+  let tail = write()
+  is(a.length + b.length + tail.length, batch.length, 'streaming length matches batch')
+  let stream = new Float32Array(batch.length)
+  stream.set(a); stream.set(b, a.length); stream.set(tail, a.length + b.length)
+  for (let i = 0; i < batch.length; i++) if (Math.abs(batch[i] - stream[i]) > 1e-6) throw new Error(`diverges at ${i}: ${batch[i]} vs ${stream[i]}`)
+  ok(true, 'streaming ≈ batch')
+  ok(batch.every(isFinite) && stream.every(isFinite), 'no NaN/Inf')
+  let batch2 = unlimit(d, opts)
+  let deterministic = true
+  for (let i = 0; i < batch.length; i++) if (batch[i] !== batch2[i]) { deterministic = false; break }
+  ok(deterministic, 'deterministic across repeated calls')
+})
+
+
 // --- deesser ---
 
 test('deesser — attenuates HF band, passes LF', () => {
@@ -525,4 +648,29 @@ test('leveler — sections ride to target, peak-guarded', () => {
 	let lDb = toDb(rmsOf(d, quiet.length + sr, quiet.length + 2 * sr))
 	almost(qDb, -20, 2.5, 'quiet section ' + qDb.toFixed(1))
 	almost(lDb, -20, 2.5, 'loud section ' + lDb.toFixed(1))
+})
+
+// --- audit 2026-07-10: ballistics must be rate-invariant (fs/sampleRate seam) ---
+
+test('envelope — fs accepted as sampleRate alias', () => {
+	let mk = (opts) => { let e = envelope({ attack: 1, release: 100, ...opts }); let v = 0; for (let i = 0; i < 4410; i++) v = e(1); for (let i = 0; i < 8820; i++) v = e(0); return v }
+	let viaFs = mk({ fs: 88200 }), viaSr = mk({ sampleRate: 88200 }), def = mk({})
+	is(viaFs, viaSr, 'fs ≡ sampleRate')
+	ok(Math.abs(db(viaFs) - db(def)) > 3, 'rate actually changes ballistics (' + db(viaFs).toFixed(1) + ' vs ' + db(def).toFixed(1) + ' dB)')
+})
+
+test('multiband — per-band ballistics rate-invariant (was: always 44100)', () => {
+	// -6 dB burst then -40 dB tail; gain-recovery trajectory in *seconds* must not
+	// depend on fs. Probe a fixed-seconds window early in the tail at two rates.
+	let probeDb = (sr) => {
+		let n = Math.round(0.8 * sr), d = new Float32Array(n)
+		let burstN = Math.round(0.3 * sr)
+		for (let i = 0; i < n; i++) d[i] = (i < burstN ? 0.5 : 0.01) * Math.sin(2 * Math.PI * 1000 * i / sr)
+		multiband(d, { fs: sr, bands: { threshold: -30, ratio: 8, attack: 1, release: 200 } })
+		let a = Math.round((0.3 + 0.03) * sr), b = Math.round((0.3 + 0.06) * sr)
+		let s = 0; for (let i = a; i < b; i++) s += d[i] * d[i]
+		return db(Math.sqrt(s / (b - a)))
+	}
+	let p44 = probeDb(44100), p96 = probeDb(96000)
+	almost(p44, p96, 0.75, 'recovery trajectory rate-invariant: ' + p44.toFixed(2) + ' vs ' + p96.toFixed(2) + ' dB')
 })

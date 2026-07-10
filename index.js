@@ -5,6 +5,7 @@ export { default as compressor, compressorGain, upwardGain } from '@audio/dynami
 export { default as limiter } from '@audio/dynamics-limiter'
 export { default as gate } from '@audio/dynamics-gate'
 export { default as expander, upwardExpanderGain } from '@audio/dynamics-expander'
+export { default as unlimit, unlimitGain } from '@audio/dynamics-unlimit'
 export { default as deesser } from '@audio/dynamics-deesser'
 export { default as ducker } from '@audio/dynamics-ducker'
 export { default as softclip } from '@audio/dynamics-softclip'

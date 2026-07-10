@@ -42,6 +42,17 @@ export interface ExpanderOpts extends EnvelopeOpts {
   range?: number        // dB; downward: max reduction, negative (e.g. -40); upward: max lift, positive (e.g. 20)
 }
 
+export interface UnlimitOpts {
+  sampleRate?: number
+  amount?: number        // dB, max crest restoration (default 0.5, range 0-18)
+  drive?: number         // dB of lift per dB of detected transientness (default 2)
+  ceiling?: number | null   // dBFS; null (default): no post-lift guard, peaks may exceed 0 dBFS
+  fastAttack?: number    // ms, transient-detector fast envelope (default 0.5)
+  fastRelease?: number   // ms (default 20)
+  slowAttack?: number    // ms, transient-detector slow envelope (default 20)
+  slowRelease?: number   // ms (default 200)
+}
+
 export interface DeesserOpts extends EnvelopeOpts {
   freq?: number         // Hz, sibilance center
   q?: number
@@ -97,6 +108,16 @@ export declare const expander: {
 // Upward expansion's pure gain curve (dB in, dB out) — see upwardGain for the
 // compressor's below-threshold complement.
 export declare function upwardExpanderGain(levelDb: number, threshold: number, ratio: number, kneeDb: number, rangeDb: number): number
+
+export declare const unlimit: {
+  (data: Float32Array, opts?: UnlimitOpts): Float32Array
+  (opts?: UnlimitOpts): Writer
+}
+
+// Pure mapping: transientness (dB, fast envelope above slow) → target lift (dB),
+// before ballistic smoothing. Built on upwardExpanderGain — see @audio/dynamics-unlimit
+// for the knee-placement rationale (threshold pinned so r(0) = 0 exactly).
+export declare function unlimitGain(fastDb: number, slowDb: number, amount: number, drive: number): number
 
 export declare const deesser: {
   (data: Float32Array, opts?: DeesserOpts): Float32Array

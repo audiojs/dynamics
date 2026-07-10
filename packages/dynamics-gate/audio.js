@@ -1,4 +1,4 @@
-// atom manifest — wraps the dynamics gate kernel per @audio/atom CONTRACT.
+// atom manifest — wraps the dynamics gate kernel per @audio/compile CONTRACT.
 // The gate state machine (hold, trigger envelope, gain smoothing) lives in gateStream;
 // all params seed it at construction (flags: restart).
 

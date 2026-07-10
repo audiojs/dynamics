@@ -1,4 +1,4 @@
-// atom manifest — wraps the SoX-style compand kernel per @audio/atom CONTRACT.
+// atom manifest — wraps the SoX-style compand kernel per @audio/compile CONTRACT.
 // The kernel's transfer curve is an arbitrary array of [inDb, outDb] points — arrays
 // aren't a valid CONTRACT param type (number/enum/bool only). Scalarized: the input
 // breakpoints stay fixed at the kernel's own default shape (-90/-60/-20/0 dB) and the

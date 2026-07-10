@@ -1,4 +1,4 @@
-// atom manifest — wraps the transient shaper kernel per @audio/atom CONTRACT.
+// atom manifest — wraps the transient shaper kernel per @audio/compile CONTRACT.
 // The kernel is causal (fast/slow envelope, no lookahead) and carries its continuation
 // state (_envFast/_envSlow) on the options object passed in, mutating it in place. We
 // own one such state object per channel in closure (fs fixed at construction; the

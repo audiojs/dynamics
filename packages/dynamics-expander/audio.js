@@ -1,4 +1,4 @@
-// atom manifest — wraps the dynamics expander kernel per @audio/atom CONTRACT.
+// atom manifest — wraps the dynamics expander kernel per @audio/compile CONTRACT.
 // Mirrors the compressor pilot: expanderGain is a pure per-sample gain curve just like
 // compressorGain, so threshold/ratio/knee/range stay live; only attack/release seed the
 // envelope follower at construction (flags: restart).

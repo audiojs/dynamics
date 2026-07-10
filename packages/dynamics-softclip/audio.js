@@ -1,4 +1,4 @@
-// atom manifest — wraps the softclip waveshaper per @audio/atom CONTRACT.
+// atom manifest — wraps the softclip waveshaper per @audio/compile CONTRACT.
 // Stateless per-sample transfer curve; curve/drive/ceiling are live params
 // (shaper rebuilt on change — cheap closure).
 

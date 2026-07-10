@@ -1,4 +1,4 @@
-// atom manifest — wraps the lookahead brickwall limiter per @audio/atom CONTRACT.
+// atom manifest — wraps the lookahead brickwall limiter per @audio/compile CONTRACT.
 // The delay line emits `lookahead` late; declared latency lets the host compensate
 // (audio's plan engine runs cursors ahead, so output lands timeline-aligned).
 // Emissions may run short during delay-line fill — they land at the block tail.

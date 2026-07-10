@@ -1,19 +1,19 @@
 {
   "name": "@audio/dynamics-vca",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "VCA compressor model — clean feed-forward, near-hard knee (dbx/SSL bus class)",
   "type": "module",
   "sideEffects": false,
   "main": "vca.js",
   "exports": {
     ".": "./vca.js",
-    "./atom": "./atom.js",
+    "./audio": "./audio.js",
     "./package.json": "./package.json"
   },
   "files": [
     "vca.js",
     "util.js",
-    "atom.js"
+    "audio.js"
   ],
   "dependencies": {
     "@audio/dynamics-envelope": "^0.1.0",
@@ -43,5 +43,5 @@
   "publishConfig": {
     "access": "public"
   },
-  "atom": "./atom.js"
+  "audio": "./audio.js"
 }

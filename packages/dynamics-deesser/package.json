@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-deesser",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "De-esser: bandpass sidechain (sibilance band) drives a compressor whose gain",
   "type": "module",
   "sideEffects": false,
@@ -8,11 +8,11 @@
   "exports": {
     ".": "./deesser.js",
     "./package.json": "./package.json",
-    "./atom": "./atom.js"
+    "./audio": "./audio.js"
   },
   "files": [
     "deesser.js",
-    "atom.js",
+    "audio.js",
     "util.js"
   ],
   "dependencies": {
@@ -42,5 +42,6 @@
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "audio": "./audio.js"
 }

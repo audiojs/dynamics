@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-compand",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Multi-segment compander (SoX `compand`). Arbitrary piecewise-linear transfer",
   "type": "module",
   "sideEffects": false,
@@ -8,11 +8,11 @@
   "exports": {
     ".": "./compand.js",
     "./package.json": "./package.json",
-    "./atom": "./atom.js"
+    "./audio": "./audio.js"
   },
   "files": [
     "compand.js",
-    "atom.js",
+    "audio.js",
     "util.js"
   ],
   "dependencies": {
@@ -40,5 +40,6 @@
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "audio": "./audio.js"
 }

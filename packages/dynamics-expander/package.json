@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-expander",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Downward expander: reduces gain below threshold by (T-L)·(ratio-1) dB,",
   "type": "module",
   "sideEffects": false,
@@ -8,11 +8,11 @@
   "exports": {
     ".": "./expander.js",
     "./package.json": "./package.json",
-    "./atom": "./atom.js"
+    "./audio": "./audio.js"
   },
   "files": [
     "expander.js",
-    "atom.js",
+    "audio.js",
     "util.js"
   ],
   "dependencies": {
@@ -40,5 +40,6 @@
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "audio": "./audio.js"
 }

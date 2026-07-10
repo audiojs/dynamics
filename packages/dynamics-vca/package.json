@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-vca",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "VCA compressor model — clean feed-forward, near-hard knee (dbx/SSL bus class)",
   "type": "module",
   "sideEffects": false,
@@ -21,7 +21,7 @@
   ],
   "dependencies": {
     "@audio/dynamics-envelope": "^0.1.0",
-    "@audio/dynamics-compressor": "^0.1.0"
+    "@audio/dynamics-compressor": "^0.2.0"
   },
   "keywords": [
     "audio",

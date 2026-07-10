@@ -93,6 +93,54 @@ test('compressor — streaming matches batch length', () => {
 })
 
 
+// --- compressor: upward (four-quadrant taxonomy — Giannoulis, Massberg & Reiss 2012,
+// JAES 60(6); Izhaki, Mixing Audio — downward/upward compression, downward/upward
+// expansion. Upward is the "OTT up" half: lifts quiet passages toward the threshold.) ---
+
+test('compressor upward — static lift', () => {
+  let sr = 44100
+  // RMS detector converges cleanly to 20·log10(amp/√2) — pick amp so that level = -40 dB.
+  let amp = Math.SQRT2 * 10 ** (-40 / 20)
+  let d = sine(1000, sr, amp)
+  let out = compressor(d, { threshold: -20, ratio: 4, upThreshold: -20, upRatio: 2, upKnee: 0, upRange: 40, detector: 'rms' })
+  let lift = toDb(rmsOf(out, sr / 2)) - toDb(rmsOf(d, sr / 2))
+  almost(lift, 10, 0.7, `lift ${lift.toFixed(2)} dB`)   // (20)·(1 − 1/2) = 10 dB
+})
+
+test('compressor upward — above threshold untouched', () => {
+  let sr = 44100
+  let d = tone(-10, 0.5, 1000, sr)
+  let out = compressor(d, { threshold: -18, ratio: 1, upThreshold: -20, upRatio: 3 })   // ratio: 1 neutralizes downward
+  let delta = toDb(rmsOf(out, sr / 4)) - toDb(rmsOf(d, sr / 4))
+  almost(delta, 0, 0.2, `untouched: ${delta.toFixed(3)} dB`)
+})
+
+test('compressor upward — range clamps', () => {
+  let sr = 44100
+  let amp = Math.SQRT2 * 10 ** (-60 / 20)
+  let d = sine(1000, sr, amp)
+  let out = compressor(d, { threshold: -20, ratio: 4, upThreshold: -20, upRatio: 4, upRange: 12, detector: 'rms' })
+  let lift = toDb(rmsOf(out, sr / 2)) - toDb(rmsOf(d, sr / 2))
+  almost(lift, 12, 0.7, `lift ${lift.toFixed(2)} dB (would be 30 unclamped)`)
+})
+
+test('compressor upward — upRatio 1 is a no-op (byte-exact)', () => {
+  let d = sine(1000, 4096, 0.4)
+  let plain = compressor(d, { threshold: -18, ratio: 3 })
+  let withUp = compressor(d, { threshold: -18, ratio: 3, upThreshold: -30, upRatio: 1, upKnee: 4, upRange: 6 })
+  is(plain.length, withUp.length)
+  for (let i = 0; i < plain.length; i++) if (plain[i] !== withUp[i]) throw new Error(`diverges at ${i}: ${plain[i]} vs ${withUp[i]}`)
+  ok(true, 'identical')
+})
+
+test('compressor upward — knee 0 yields no NaN', () => {
+  let d = sine(1000, fs >> 2, 0.5)
+  let out = compressor(d, { threshold: -20, ratio: 4, upThreshold: -30, upRatio: 3, upKnee: 0, upRange: 20 })
+  for (let i = 0; i < out.length; i++) if (Number.isNaN(out[i])) throw new Error(`NaN at ${i}`)
+  ok(true, 'no NaN with upward hard knee')
+})
+
+
 // --- limiter ---
 
 test('limiter — peak never exceeds ceiling', () => {
@@ -204,6 +252,27 @@ test('expander — hard knee (knee: 0) yields no NaN', () => {
 })
 
 
+// --- expander: upward (de-compression — the substrate for de-limiting over-squashed
+// material; same four-quadrant taxonomy as compressor's upward mode) ---
+
+test('expander upward — de-compression static curve', () => {
+  let sr = 44100
+  let amp = Math.SQRT2 * 10 ** (-10 / 20)
+  let d = sine(1000, sr, amp)
+  let out = expander(d, { mode: 'upward', threshold: -20, ratio: 1.5, knee: 0, detector: 'rms' })
+  let lift = toDb(rmsOf(out, sr / 2)) - toDb(rmsOf(d, sr / 2))
+  almost(lift, 5, 0.7, `lift ${lift.toFixed(2)} dB`)   // 10 · (1.5 − 1) = 5 dB
+})
+
+test('expander upward — below threshold untouched', () => {
+  let sr = 44100
+  let d = tone(-30, 0.5, 1000, sr)
+  let out = expander(d, { mode: 'upward', threshold: -20, ratio: 2 })
+  let delta = toDb(rmsOf(out, sr / 4)) - toDb(rmsOf(d, sr / 4))
+  almost(delta, 0, 0.2, `untouched: ${delta.toFixed(3)} dB`)
+})
+
+
 // --- deesser ---
 
 test('deesser — attenuates HF band, passes LF', () => {
@@ -263,6 +332,36 @@ test('softclip — preserves small signals linearly', () => {
   almost(rms(out), rms(d), rms(d) * 0.02, 'near-linear at low level')
 })
 
+test('softclip — oversample reduces aliasing (10 kHz through hard clip, drive 4)', () => {
+  // 3rd harmonic of 10 kHz = 30 kHz aliases to 44100−30000 = 14100 Hz without
+  // oversampling; mirrors @audio/saturate's alias-floor recipe (Goertzel at the
+  // alias bin, naive vs oversampled, edges trimmed against resample-kernel taper).
+  let naive = softclip(sine(10000, fs, 0.7), { curve: 'hard', drive: 4, oversample: 1 })
+  let os = softclip(sine(10000, fs, 0.7), { curve: 'hard', drive: 4, oversample: 4 })
+  let trim = d => d.subarray(2048, d.length - 2048)
+  let aliasNaive = energyAt(trim(naive), fs - 30000)
+  let aliasOs = energyAt(trim(os), fs - 30000)
+  ok(aliasOs < aliasNaive * 10 ** (-12 / 20),
+    `alias floor −${(20 * Math.log10(aliasNaive / aliasOs)).toFixed(1)} dB vs naive (≥12 dB required)`)
+})
+
+test('softclip — oversample: 1 exactly preserves current behavior', () => {
+  let d = sine(1000, 2048, 0.6)
+  let ref = softclip(d, { curve: 'tanh', drive: 2 })              // oversample omitted
+  let explicit = softclip(d, { curve: 'tanh', drive: 2, oversample: 1 })
+  is(ref.length, explicit.length)
+  for (let i = 0; i < ref.length; i++) if (ref[i] !== explicit[i]) throw new Error(`diverges at ${i}`)
+  ok(true, 'identical whether oversample is omitted or explicit 1')
+})
+
+test('softclip — output length preserved under oversampling', () => {
+  let d = sine(1000, 4001, 0.5)   // odd length stresses the resample round-trip's rounding
+  for (let os of [1, 2, 4, 8]) {
+    let out = softclip(d, { curve: 'tanh', drive: 1.5, oversample: os })
+    is(out.length, d.length, `oversample ${os} preserves length`)
+  }
+})
+
 
 // --- compand ---
 
@@ -320,6 +419,40 @@ test('multiband — compresses only the targeted band', () => {
 	ok(Math.abs(20 * Math.log10(lo1 / lo0)) < 1, 'low band untouched')
 	ok(20 * Math.log10(hi1 / hi0) < -6, 'high band compressed ≥6 dB')
 	ok(d.every(isFinite), 'no NaN')
+})
+
+// OTT-class upward+downward multiband (Xfer OTT recipe — see README). Quiet 150 Hz
+// band should rise (upward compression pulling it toward upThreshold); loud 5 kHz
+// band should fall (downward compression pulling it toward threshold).
+test('multiband OTT — quiet band lifted, loud band squashed', () => {
+	let n = 44100
+	let d = new Float32Array(n)
+	let loAmp = 10 ** (-45 / 20), hiAmp = 10 ** (-6 / 20)
+	for (let i = 0; i < n; i++) d[i] = loAmp * Math.sin(2 * Math.PI * 150 * i / 44100) + hiAmp * Math.sin(2 * Math.PI * 5000 * i / 44100)
+	let lo0 = energyAt(d.subarray(n / 2), 150), hi0 = energyAt(d.subarray(n / 2), 5000)
+	multiband(d, { freqs: [400, 2000], fs: 44100, bands: { threshold: -24, ratio: 4, upThreshold: -30, upRatio: 2 } })
+	ok(d.every(isFinite), 'no NaN')
+	let lo1 = energyAt(d.subarray(n / 2), 150), hi1 = energyAt(d.subarray(n / 2), 5000)
+	let loDb = 20 * Math.log10(lo1 / lo0), hiDb = 20 * Math.log10(hi1 / hi0)
+	ok(loDb >= 3, `150 Hz rises ${loDb.toFixed(1)} dB`)
+	ok(hiDb <= -3, `5 kHz falls ${hiDb.toFixed(1)} dB`)
+})
+
+test('multiband — depth 0 is identity; depth scales gain monotonically', () => {
+	let n = 44100
+	let mk = () => { let d = new Float32Array(n); for (let i = 0; i < n; i++) d[i] = 0.5 * Math.sin(2 * Math.PI * 5000 * i / 44100); return d }
+	let refE = energyAt(mk().subarray(n / 2), 5000)
+
+	let d0 = mk()
+	multiband(d0, { freqs: [400, 2000], fs: 44100, bands: { threshold: -24, ratio: 4, depth: 0 } })
+	almost(20 * Math.log10(energyAt(d0.subarray(n / 2), 5000) / refE), 0, 0.1, 'depth 0 is identity')
+
+	let d50 = mk(), d100 = mk()
+	multiband(d50, { freqs: [400, 2000], fs: 44100, bands: { threshold: -24, ratio: 4, depth: 0.5 } })
+	multiband(d100, { freqs: [400, 2000], fs: 44100, bands: { threshold: -24, ratio: 4, depth: 1 } })
+	let red50 = 20 * Math.log10(energyAt(d50.subarray(n / 2), 5000) / refE)
+	let red100 = 20 * Math.log10(energyAt(d100.subarray(n / 2), 5000) / refE)
+	ok(red100 < red50, `depth 1 reduces more (${red100.toFixed(1)} dB) than depth 0.5 (${red50.toFixed(1)} dB)`)
 })
 
 function tone (db, seconds, freq = 997, sr = 44100) {

@@ -1,6 +1,6 @@
 ## @audio/dynamics [![test](https://github.com/audiojs/dynamics/actions/workflows/test.yml/badge.svg)](https://github.com/audiojs/dynamics/actions/workflows/test.yml) [![npm](https://img.shields.io/npm/v/@audio/dynamics)](https://npmjs.org/dynamics-processor) [![license](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/audiojs/dynamics/blob/main/LICENSE)
 
-Dynamics processing — compressor, limiter, gate, expander, de-esser, ducker, softclip, compand. All built on a single branching envelope follower; differences are purely in the gain curve. Part of [audiojs](https://github.com/audiojs).
+Dynamics processing — compressor, limiter, gate, expander, de-esser, ducker, softclip, compand, multiband. All built on a single branching envelope follower; differences are purely in the gain curve (multiband composes N compressors across an LR crossover). Part of [audiojs](https://github.com/audiojs).
 
 | | Kind | Gain function | Typical use |
 |---|---|---|---|
@@ -12,6 +12,7 @@ Dynamics processing — compressor, limiter, gate, expander, de-esser, ducker, s
 | [ducker](#ducker) | ext. sidechain | compressor keyed by side signal | music-under-voice, podcast |
 | [softclip](#softclip) | waveshaper | static transfer curve | gentle peak limiting + coloration |
 | [compand](#compand) | envelope | piecewise-linear transfer | SoX-style multi-segment |
+| [multiband](#multiband) | envelope × N bands | LR split + per-band up/down compression | mastering glue, OTT-style upward+downward |
 
 
 ## Usage
@@ -62,11 +63,16 @@ for (let x of samples) level.push(follow(x))
 
 Feed-forward soft-knee downward compressor — Giannoulis-Massberg topology. Envelope → log domain → quadratic soft-knee gain curve → linear gain applied to input.
 
+Downward compression (above threshold, reduces gain) is one half of the canonical four-quadrant dynamics taxonomy — downward/upward compression, downward/upward expansion (Giannoulis, Massberg & Reiss 2012; Izhaki, *Mixing Audio*). Setting `upThreshold` engages the other compression half: **upward compression** lifts quiet passages *toward* the threshold instead of squashing loud ones — the "OTT up" half popularized by Xfer OTT. Both curves read the same envelope and sum in the dB domain, so a single compressor call can glue loud material down and lift quiet material up at once.
+
 ```js
 import { compressor } from '@audio/dynamics'
 
 compressor(data, { threshold: -18, ratio: 4 })
 compressor(data, { threshold: -24, ratio: 2, knee: 12, attack: 10, release: 200, makeup: 6 })
+
+// upward + downward together (OTT-style): lift quiet passages, squash loud ones
+compressor(data, { threshold: -18, ratio: 4, upThreshold: -40, upRatio: 2, upRange: 12 })
 ```
 
 | Param | Default | |
@@ -77,8 +83,13 @@ compressor(data, { threshold: -24, ratio: 2, knee: 12, attack: 10, release: 200,
 | `attack` | `5` | ms |
 | `release` | `100` | ms |
 | `makeup` | `0` | dB |
+| `depth` | `1` | scales the summed up+down gain before makeup (OTT "Depth" macro; `0` = identity) |
+| `upThreshold` | `null` | dB; `null` disables upward compression |
+| `upRatio` | `2` | — (`1` is a mathematical no-op) |
+| `upKnee` | `6` | dB |
+| `upRange` | `12` | dB, max upward lift — without a ceiling, silence would take unbounded gain |
 
-**Use when:** vocals, bass, drum bus, mix glue.<br>
+**Use when:** vocals, bass, drum bus, mix glue; add `upThreshold` for OTT-style up+down "aggressive" glue.<br>
 **Not for:** peak control at the master bus — use [limiter](#limiter). Transparent loudness shaping — use [compand](#compand) with gentle slope.
 
 
@@ -130,24 +141,30 @@ gate(data, { threshold: -35, range: -80, hold: 20, attack: 1, release: 150, look
 
 ## expander
 
-Downward expander — a softer gate. Below threshold, gain is reduced by `(threshold − level) × (ratio − 1)` dB, clamped at `range`.
+Downward expander (`mode: 'downward'`, default) — a softer gate. Below threshold, gain is reduced by `(threshold − level) × (ratio − 1)` dB, clamped at `range`.
+
+`mode: 'upward'` switches to **upward expansion** — the de-compression complement, raising gain *above* threshold instead of cutting it below. Classical substrate for de-limiting: transient-aware upward expansion restores crest factor a brickwall limiter (or an over-eager mix bus compressor) flattened. Same four-quadrant taxonomy as [compressor](#compressor)'s upward mode (Giannoulis/Reiss; Izhaki, *Mixing Audio*).
 
 ```js
 import { expander } from '@audio/dynamics'
 
 expander(data, { threshold: -30, ratio: 2 })
+
+// de-limiting: expand transients back out above threshold
+expander(data, { mode: 'upward', threshold: -20, ratio: 1.5, range: 20 })
 ```
 
 | Param | Default | |
 |---|---|---|
+| `mode` | `'downward'` | `'downward'` \| `'upward'` |
 | `threshold` | `-30` | dB |
 | `ratio` | `2` | — |
 | `knee` | `6` | dB |
-| `range` | `-40` | dB, max reduction |
+| `range` | `-40` (downward) / `20` (upward) | dB, max reduction (downward, negative) or max lift (upward, positive) |
 | `attack` | `5` | ms |
 | `release` | `50` | ms |
 
-**Use when:** gentle noise-floor suppression without the abruptness of a gate.<br>
+**Use when:** gentle noise-floor suppression without the abruptness of a gate (`downward`); restoring dynamics to over-compressed or over-limited material (`upward`).<br>
 **Not for:** hard removal of sound between phrases — use [gate](#gate).
 
 
@@ -212,11 +229,14 @@ let tail = duck()
 
 Static waveshaping — no time state, no pumping. Maps input through a fixed transfer curve; peaks saturate smoothly, introducing controlled harmonic content.
 
+Hard/high-drive clipping generates harmonics above Nyquist that fold back as audible aliasing. `oversample` (1/2/4/8, default `1`) runs the transfer at N× rate and decimates back down through a windowed-sinc anti-alias filter, same technique as [`@audio/saturate`](https://github.com/audiojs/saturate)'s oversampled shapers — `oversample: 1` is the exact non-oversampled path (no resampling, zero cost).
+
 ```js
 import { softclip } from '@audio/dynamics'
 
 softclip(data, { curve: 'tanh', drive: 1.5 })
 softclip(data, { curve: 'cubic', drive: 2, ceiling: 0.9 })
+softclip(data, { curve: 'hard', drive: 4, oversample: 4, fs: 44100 })   // clean high-drive clip
 ```
 
 | Param | Default | |
@@ -224,8 +244,10 @@ softclip(data, { curve: 'cubic', drive: 2, ceiling: 0.9 })
 | `curve` | `'tanh'` | `'tanh'`, `'atan'`, `'cubic'`, `'sin'`, `'hard'` |
 | `drive` | `1` | input pre-gain |
 | `ceiling` | `1` | output asymptote |
+| `oversample` | `1` | `1`, `2`, `4`, `8` — anti-aliased oversampling |
+| `fs` | `44100` | Hz, sample rate (only used when `oversample > 1`) |
 
-**Use when:** gentle peak control with musical saturation, avoiding pumping artifacts of a limiter, lo-fi character.<br>
+**Use when:** gentle peak control with musical saturation, avoiding pumping artifacts of a limiter, lo-fi character; `oversample` for hard/high-drive clipping that must stay alias-free.<br>
 **Not for:** transparent true-peak safety — use [limiter](#limiter). Clean gain reduction — use [compressor](#compressor).
 
 
@@ -256,6 +278,54 @@ compand(data, {
 **Not for:** simple threshold compression — use [compressor](#compressor).
 
 
+## multiband
+
+Multiband compressor — Linkwitz-Riley crossover split, an independent [compressor](#compressor) per band (upward half included), flat sum by construction (SoX `mcompand` class). The manifest (`multiband/audio`) is a 3-band "one-knob" mastering stage — one shared setting across low/mid/high, split at `low`/`high`. The kernel (`multiband(data, opts)`) takes N-1 crossover points and per-band settings directly, for full control; every `bands` entry is spread straight into `compressor()`, so upward compression and `depth` are already there per band.
+
+```js
+import { multiband } from '@audio/dynamics'
+
+// one-knob: shared setting across 3 bands split at 200/2000 Hz
+multiband(data, { freqs: [200, 2000], bands: { threshold: -24, ratio: 3 } })
+
+// per-band settings, N bands (mutates data in place)
+multiband(data, {
+  freqs: [400, 4000],
+  bands: [
+    { threshold: -24, ratio: 3 },               // low
+    { threshold: -20, ratio: 4, makeup: 2 },     // mid
+    null,                                        // high: pass through uncompressed
+  ],
+})
+```
+
+**OTT-class upward+downward multiband** — [Xfer OTT](https://xferrecords.com/products/ott)'s "upward + downward compression on 3 bands" recipe, reproduced with this atom's `upThreshold`/`upRatio`/`depth`:
+
+```js
+let depth = 1   // OTT's "Depth" macro — 0 is a transparent pass, 1 is full effect, up to 2 overshoots it
+multiband(data, {
+  freqs: [88.3, 2500],   // OTT's own crossover points
+  bands: [
+    { threshold: -24, ratio: 4, upThreshold: -30, upRatio: 2, attack: 2, release: 35, depth },  // low
+    { threshold: -24, ratio: 4, upThreshold: -30, upRatio: 2, attack: 5, release: 60, depth },  // mid
+    { threshold: -24, ratio: 4, upThreshold: -30, upRatio: 2, attack: 2, release: 35, depth },  // high
+  ],
+})
+```
+
+| Param | Default | |
+|---|---|---|
+| `freqs` | `[200, 2000]` | Hz, N-1 crossover points for N bands |
+| `bands` | — | per-band `{threshold, ratio, knee, attack, release, makeup, upThreshold, upRatio, upKnee, upRange, depth}`, or one object shared by all bands; `null` passes a band through uncompressed |
+| `order` | `4` | Linkwitz-Riley crossover order (2, 4, 8) |
+| `fs` | `44100` | Hz |
+
+Manifest params (3-band one-knob form): `low`, `high`, `threshold`, `ratio`, `upThreshold`, `upRatio`, `depth`, `attack`, `release`, `makeup`.
+
+**Use when:** mastering-stage glue across the spectrum; OTT-style "upward + downward everywhere" aggressive multiband; taming one band without touching others.<br>
+**Not for:** single-band dynamics — use [compressor](#compressor) directly.
+
+
 ## See also
 
 * [denoise](https://github.com/audiojs/denoise) — umbrella for everything noise; its `gate`/`deesser` are seconds-unit adapters over this package (2026-07 near-dupe merge)
@@ -267,6 +337,7 @@ compand(data, {
 ## References
 
 * Giannoulis, D., Massberg, M. & Reiss, J.D. (2012). "Digital dynamic range compressor design — a tutorial and analysis." _JAES_, 60(6).
+* Izhaki, R. _Mixing Audio: Concepts, Practices and Tools._ Focal Press / Routledge. Four-quadrant dynamics taxonomy — downward/upward compression, downward/upward expansion.
 * Zölzer, U. (ed., 2011). _DAFX — Digital Audio Effects_ (2nd ed.), chapter on dynamics processing.
 * Reiss, J.D. & McPherson, A. (2014). _Audio Effects — Theory, Implementation and Application_, Ch. 6.
 * Bristow-Johnson, R. (2005). "Audio EQ Cookbook." (RBJ biquad formulae, used in deesser sidechain.)

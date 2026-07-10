@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-opto",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Optical compressor model — RMS detector, wide knee, T4 program-dependent release (LA-2A class)",
   "type": "module",
   "sideEffects": false,
@@ -21,7 +21,7 @@
   ],
   "dependencies": {
     "@audio/dynamics-envelope": "^0.1.0",
-    "@audio/dynamics-compressor": "^0.1.0"
+    "@audio/dynamics-compressor": "^0.2.0"
   },
   "keywords": [
     "audio",

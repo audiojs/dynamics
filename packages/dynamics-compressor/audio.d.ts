@@ -18,6 +18,14 @@ export interface CompressorOptions {
   "knee"?: Auto
   /** -12..24 dB (default 0) */
   "makeup"?: Auto
+  /** -80..0 dB (default -40) */
+  "upThreshold"?: Auto
+  /** 1..20 (default 1) */
+  "upRatio"?: Auto
+  /** 0..24 dB (default 6) */
+  "upKnee"?: Auto
+  /** 0..40 dB (default 12) */
+  "upRange"?: Auto
   /** 0.1..100 ms (default 5) */
   "attack"?: Auto
   /** 1..1000 ms (default 100) */
@@ -39,6 +47,14 @@ export declare const compressor: {
     "knee": { type: "number", default: 6 }
     /** -12..24 dB (default 0) */
     "makeup": { type: "number", default: 0 }
+    /** -80..0 dB (default -40) */
+    "upThreshold": { type: "number", default: -40 }
+    /** 1..20 (default 1) */
+    "upRatio": { type: "number", default: 1 }
+    /** 0..24 dB (default 6) */
+    "upKnee": { type: "number", default: 6 }
+    /** 0..40 dB (default 12) */
+    "upRange": { type: "number", default: 12 }
     /** 0.1..100 ms (default 5) [restart] */
     "attack": { type: "number", default: 5 }
     /** 1..1000 ms (default 100) [restart] */

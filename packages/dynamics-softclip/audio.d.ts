@@ -16,6 +16,8 @@ export interface SoftclipOptions {
   "drive"?: Auto
   /** 0.05..1 (default 1) */
   "ceiling"?: Auto
+  /** 1..8 (default 1) */
+  "oversample"?: Auto
   at?: number | string
   duration?: number | string
 }
@@ -23,6 +25,7 @@ export interface SoftclipOptions {
 export declare const softclip: {
   (ctx: Ctx): Process
   channels: "any"
+  streaming: false
   params: {
     /** default "tanh" */
     "curve": { type: "enum", values: ["tanh","atan","cubic","sin","hard"], default: "tanh" }
@@ -30,5 +33,7 @@ export declare const softclip: {
     "drive": { type: "number", default: 1 }
     /** 0.05..1 (default 1) */
     "ceiling": { type: "number", default: 1 }
+    /** 1..8 (default 1) */
+    "oversample": { type: "number", default: 1 }
   }
 }

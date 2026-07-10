@@ -14,6 +14,11 @@ export interface CompressorOpts extends EnvelopeOpts {
   ratio?: number
   knee?: number         // dB
   makeup?: number       // dB
+  depth?: number        // scales the summed up+down gain before makeup (OTT "Depth"), default 1
+  upThreshold?: number | null   // dB; null (default) disables upward compression
+  upRatio?: number      // default 2
+  upKnee?: number       // dB, default 6
+  upRange?: number      // dB, max upward lift, default 12
 }
 
 export interface LimiterOpts {
@@ -30,10 +35,11 @@ export interface GateOpts extends EnvelopeOpts {
 }
 
 export interface ExpanderOpts extends EnvelopeOpts {
+  mode?: 'downward' | 'upward'   // default 'downward'
   threshold?: number
   ratio?: number
   knee?: number
-  range?: number        // dB, max reduction (e.g. -40)
+  range?: number        // dB; downward: max reduction, negative (e.g. -40); upward: max lift, positive (e.g. 20)
 }
 
 export interface DeesserOpts extends EnvelopeOpts {
@@ -55,6 +61,8 @@ export interface SoftclipOpts {
   curve?: 'tanh' | 'atan' | 'cubic' | 'sin' | 'hard'
   drive?: number
   ceiling?: number
+  fs?: number            // sample rate, used by oversample's resampler; default 44100
+  oversample?: 1 | 2 | 4 | 8   // default 1 (exact non-oversampled behavior)
 }
 
 export interface CompandOpts extends EnvelopeOpts {
@@ -65,6 +73,11 @@ export declare const compressor: {
   (data: Float32Array, opts?: CompressorOpts): Float32Array
   (opts?: CompressorOpts): Writer
 }
+
+// Pure gain-curve functions (dB in, dB out) — the compressor kernel's building
+// blocks, exposed for custom envelope-driven processing.
+export declare function compressorGain(levelDb: number, threshold: number, ratio: number, kneeDb: number): number
+export declare function upwardGain(levelDb: number, threshold: number, ratio: number, kneeDb: number, rangeDb?: number): number
 
 export declare const limiter: {
   (data: Float32Array, opts?: LimiterOpts): Float32Array
@@ -80,6 +93,10 @@ export declare const expander: {
   (data: Float32Array, opts?: ExpanderOpts): Float32Array
   (opts?: ExpanderOpts): Writer
 }
+
+// Upward expansion's pure gain curve (dB in, dB out) — see upwardGain for the
+// compressor's below-threshold complement.
+export declare function upwardExpanderGain(levelDb: number, threshold: number, ratio: number, kneeDb: number, rangeDb: number): number
 
 export declare const deesser: {
   (data: Float32Array, opts?: DeesserOpts): Float32Array

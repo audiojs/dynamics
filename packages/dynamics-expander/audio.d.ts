@@ -10,13 +10,15 @@ type Process = (inputs: Float32Array[][], outputs: Float32Array[][], params: Liv
 
 /** Chainable-host options for 'expander' */
 export interface ExpanderOptions {
+  /** default "downward" */
+  "mode"?: "downward" | "upward"
   /** -80..0 dB (default -30) */
   "threshold"?: Auto
   /** 1..20 (default 2) */
   "ratio"?: Auto
   /** 0..24 dB (default 6) */
   "knee"?: Auto
-  /** -90..0 dB (default -40) */
+  /** 0..90 dB (default 40) */
   "range"?: Auto
   /** 0.1..100 ms (default 5) */
   "attack"?: Auto
@@ -31,14 +33,16 @@ export declare const expander: {
   channels: "any"
   tail: 0
   params: {
+    /** default "downward" */
+    "mode": { type: "enum", values: ["downward","upward"], default: "downward" }
     /** -80..0 dB (default -30) */
     "threshold": { type: "number", default: -30 }
     /** 1..20 (default 2) */
     "ratio": { type: "number", default: 2 }
     /** 0..24 dB (default 6) */
     "knee": { type: "number", default: 6 }
-    /** -90..0 dB (default -40) */
-    "range": { type: "number", default: -40 }
+    /** 0..90 dB (default 40) */
+    "range": { type: "number", default: 40 }
     /** 0.1..100 ms (default 5) [restart] */
     "attack": { type: "number", default: 5 }
     /** 1..1000 ms (default 50) [restart] */

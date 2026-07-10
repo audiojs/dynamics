@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-compressor",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "description": "Feed-forward soft-knee compressor (Giannoulis-Massberg topology)",
   "type": "module",
   "sideEffects": false,

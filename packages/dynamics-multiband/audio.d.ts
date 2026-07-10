@@ -18,6 +18,12 @@ export interface MultibandOptions {
   "threshold"?: Auto
   /** 1..20 (default 3) */
   "ratio"?: Auto
+  /** -80..0 dB (default -40) */
+  "upThreshold"?: Auto
+  /** 1..20 (default 1) */
+  "upRatio"?: Auto
+  /** 0..2 (default 1) */
+  "depth"?: Auto
   /** 0.1..100 ms (default 5) */
   "attack"?: Auto
   /** 20..2000 ms (default 150) */
@@ -42,6 +48,12 @@ export declare const multiband: {
     "threshold": { type: "number", default: -24 }
     /** 1..20 (default 3) */
     "ratio": { type: "number", default: 3 }
+    /** -80..0 dB (default -40) */
+    "upThreshold": { type: "number", default: -40 }
+    /** 1..20 (default 1) */
+    "upRatio": { type: "number", default: 1 }
+    /** 0..2 (default 1) */
+    "depth": { type: "number", default: 1 }
     /** 0.1..100 ms (default 5) */
     "attack": { type: "number", default: 5 }
     /** 20..2000 ms (default 150) */

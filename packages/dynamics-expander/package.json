@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-expander",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "description": "Downward expander: reduces gain below threshold by (T-L)·(ratio-1) dB,",
   "type": "module",
   "sideEffects": false,

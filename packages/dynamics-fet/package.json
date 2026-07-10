@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-fet",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "FET compressor model — 0.2 ms peak attack, high ratios, firm knee (1176 class)",
   "type": "module",
   "sideEffects": false,
@@ -21,7 +21,7 @@
   ],
   "dependencies": {
     "@audio/dynamics-envelope": "^0.1.0",
-    "@audio/dynamics-compressor": "^0.1.0"
+    "@audio/dynamics-compressor": "^0.2.0"
   },
   "keywords": [
     "audio",

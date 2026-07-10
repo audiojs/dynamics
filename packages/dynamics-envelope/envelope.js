@@ -4,7 +4,10 @@ import { timeCoef } from './util.js'
 // Separate attack and release time constants; the classic feed-forward compressor
 // topology. Peak or RMS detection selectable.
 export function envelope(opts = {}) {
-  let sr = opts.sampleRate || 44100
+  // sampleRate is this family's documented key; fs accepted too — half the ecosystem
+  // (and dynamics' own fs-named atoms: multiband, leveler, transient-shaper) passes fs,
+  // and silently falling back to 44100 skews ballistics at any other rate.
+  let sr = opts.sampleRate ?? opts.fs ?? 44100
   let aa = timeCoef(opts.attack ?? 5, sr)
   let ar = timeCoef(opts.release ?? 50, sr)
   let detector = opts.detector || 'peak'

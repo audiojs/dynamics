@@ -29,7 +29,9 @@ export default function multiband (data, { freqs = [200, 2000], bands, order = 4
 			for (let i = 0; i < band.length; i++) band[i] = step(sec, st, band[i])
 		}
 		let params = Array.isArray(bands) ? bands[b] : bands
-		if (params) band = compressor(band, { fs, ...params })
+		// compressor's envelope reads sampleRate — passing fs alone left per-band
+		// ballistics at 44100 for any other rate (crossover was correct, attack/release weren't)
+		if (params) band = compressor(band, { fs, sampleRate: fs, ...params })
 		for (let i = 0; i < out.length; i++) out[i] += band[i]
 	}
 

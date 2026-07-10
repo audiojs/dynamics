@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-multiband",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Multiband compressor — Linkwitz-Riley split + per-band soft-knee compression, flat sum (SoX mcompand class)",
   "type": "module",
   "sideEffects": false,

@@ -5,10 +5,10 @@
 // is a pure per-sample curve, same as compressor.js; only attack/release seed the envelope
 // at construction).
 //
-// NOTE: the audio host only feeds bus 0 today (single-bus process calls) — until it wires
-// up multi-bus routing, `inputs[1]` arrives undefined and this falls back to keying off the
-// main signal itself (self-compression, not true ducking). The declaration is forward-looking
-// and correct per CONTRACT; it just isn't exercised as a real sidechain until the host catches up.
+// NOTE: the audio host feeds bus 1 from its `key` option (chain.ducker({ key }) — rendered
+// per block, rate-reconciled). When no key is given, or a host feeds only bus 0,
+// `inputs[1]` arrives undefined and this falls back to keying off the main signal itself
+// (self-compression, not true ducking).
 
 import { envelope } from '@audio/dynamics-envelope'
 import { compressorGain } from '@audio/dynamics-compressor'

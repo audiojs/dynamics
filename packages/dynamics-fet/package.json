@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-fet",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "FET compressor model — 0.2 ms peak attack, high ratios, firm knee (1176 class)",
   "type": "module",
   "sideEffects": false,
@@ -17,7 +17,8 @@
     "fet.js",
     "util.js",
     "audio.js",
-    "audio.d.ts"
+    "audio.d.ts",
+    "fet.d.ts"
   ],
   "dependencies": {
     "@audio/dynamics-envelope": "^0.1.0",
@@ -47,5 +48,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "audio": "./audio.js"
+  "types": "./fet.d.ts",
+  "audio": "./audio.js",
+  "funding": "https://github.com/sponsors/audiojs"
 }

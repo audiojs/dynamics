@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-limiter",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Lookahead brickwall limiter. A sliding-window maximum (monotonic deque) over",
   "type": "module",
   "sideEffects": false,
@@ -17,7 +17,8 @@
     "limiter.js",
     "audio.js",
     "util.js",
-    "audio.d.ts"
+    "audio.d.ts",
+    "limiter.d.ts"
   ],
   "keywords": [
     "audio",
@@ -42,5 +43,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "audio": "./audio.js"
+  "types": "./limiter.d.ts",
+  "audio": "./audio.js",
+  "funding": "https://github.com/sponsors/audiojs"
 }

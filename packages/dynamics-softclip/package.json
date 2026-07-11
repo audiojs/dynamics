@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-softclip",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Static waveshaping — no envelope, no time state. Deterministic per-sample",
   "type": "module",
   "sideEffects": false,
@@ -18,7 +18,8 @@
     "shape.js",
     "audio.js",
     "util.js",
-    "audio.d.ts"
+    "audio.d.ts",
+    "softclip.d.ts"
   ],
   "dependencies": {
     "@audio/resample-sinc": "^1.0.0"
@@ -46,5 +47,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "audio": "./audio.js"
+  "types": "./softclip.d.ts",
+  "audio": "./audio.js",
+  "funding": "https://github.com/sponsors/audiojs"
 }

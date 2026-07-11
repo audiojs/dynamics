@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-vca",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "VCA compressor model — clean feed-forward, near-hard knee (dbx/SSL bus class)",
   "type": "module",
   "sideEffects": false,
@@ -17,7 +17,8 @@
     "vca.js",
     "util.js",
     "audio.js",
-    "audio.d.ts"
+    "audio.d.ts",
+    "vca.d.ts"
   ],
   "dependencies": {
     "@audio/dynamics-envelope": "^0.1.0",
@@ -47,5 +48,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "audio": "./audio.js"
+  "types": "./vca.d.ts",
+  "audio": "./audio.js",
+  "funding": "https://github.com/sponsors/audiojs"
 }

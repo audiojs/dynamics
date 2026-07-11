@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-envelope",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Branching one-pole envelope follower. Returns a stateful per-sample detector",
   "type": "module",
   "sideEffects": false,
@@ -11,7 +11,8 @@
   },
   "files": [
     "envelope.js",
-    "util.js"
+    "util.js",
+    "envelope.d.ts"
   ],
   "keywords": [
     "audio",
@@ -35,5 +36,7 @@
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "types": "./envelope.d.ts",
+  "funding": "https://github.com/sponsors/audiojs"
 }

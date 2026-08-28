@@ -1,5 +1,7 @@
 ## @audio/dynamics [![test](https://github.com/audiojs/dynamics/actions/workflows/test.yml/badge.svg)](https://github.com/audiojs/dynamics/actions/workflows/test.yml) [![npm](https://img.shields.io/npm/v/@audio/dynamics)](https://npmjs.org/dynamics-processor) [![license](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/audiojs/dynamics/blob/main/LICENSE)
 
+Try it in the browser: [Loudness meter and normalizer](https://audiojs.dev/util/loudness/). Runs on this package, nothing is uploaded.
+
 Dynamics processing — compressor, limiter, gate, expander, de-limiter, de-esser, ducker, softclip, compand, multiband. All built on a single branching envelope follower; differences are purely in the gain curve (multiband composes N compressors across an LR crossover). Part of [audiojs](https://github.com/audiojs).
 
 | | Kind | Gain function | Typical use |

@@ -13,7 +13,7 @@ import multiband from '@audio/dynamics-multiband'
 Multiband compressor — Linkwitz-Riley crossover split, an independent [compressor](#compressor) per band (upward half included), flat sum by construction (SoX `mcompand` class). The manifest (`multiband/audio`) is a 3-band "one-knob" mastering stage — one shared setting across low/mid/high, split at `low`/`high`. The kernel (`multiband(data, opts)`) takes N-1 crossover points and per-band settings directly, for full control; every `bands` entry is spread straight into `compressor()`, so upward compression and `depth` are already there per band.
 
 ```js
-import { multiband } from '@audio/dynamics'
+import multiband from '@audio/dynamics-multiband'
 
 // one-knob: shared setting across 3 bands split at 200/2000 Hz
 multiband(data, { freqs: [200, 2000], bands: { threshold: -24, ratio: 3 } })

@@ -13,7 +13,7 @@ import compand from '@audio/dynamics-compand'
 SoX-style multi-segment compander. Arbitrary piecewise-linear transfer in dB unifies compression, expansion, and gating under one curve — points below the identity line compress; above, they expand.
 
 ```js
-import { compand } from '@audio/dynamics'
+import compand from '@audio/dynamics-compand'
 
 // Default: compress above -20 dB
 compand(data)

@@ -15,7 +15,7 @@ Downward expander (`mode: 'downward'`, default) — a softer gate. Below thresho
 `mode: 'upward'` switches to **upward expansion** — the de-compression complement, raising gain *above* threshold instead of cutting it below. Classical substrate for de-limiting: transient-aware upward expansion restores crest factor a brickwall limiter (or an over-eager mix bus compressor) flattened. Same four-quadrant taxonomy as [compressor](#compressor)'s upward mode (Giannoulis/Reiss; Izhaki, *Mixing Audio*).
 
 ```js
-import { expander } from '@audio/dynamics'
+import expander from '@audio/dynamics-expander'
 
 expander(data, { threshold: -30, ratio: 2 })
 

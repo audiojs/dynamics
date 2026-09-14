@@ -15,7 +15,7 @@ De-limiter. iZotope Ozone 12's "Unlimiter" (Sept 2025) created the de-limiting c
 A fast envelope (`fastAttack`/`fastRelease`, near-instant) and a slow envelope (`slowAttack`/`slowRelease`, sluggish) both track the input; their gap in dB — *transientness* — rises sharply on attacks and sits near zero on sustained material. Gain lift follows transientness, not absolute level: an absolute-level upward expander would pump sustains; gating on the fast/slow gap instead is what makes this a de-limiter rather than a leveler.
 
 ```js
-import { unlimit } from '@audio/dynamics'
+import unlimit from '@audio/dynamics-unlimit'
 
 unlimit(data, { amount: 9, drive: 2 })                  // deliberate restoration
 unlimit(data, { amount: 9, drive: 2, ceiling: -1 })      // guard restored peaks at -1 dBFS

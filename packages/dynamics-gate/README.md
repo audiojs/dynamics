@@ -13,7 +13,7 @@ import gate from '@audio/dynamics-gate'
 Noise gate with hysteresis, hold-then-close logic and look-ahead. Opens above `threshold`, closes only below `closeThreshold` (hysteresis prevents chatter around a single threshold); below it, signal is attenuated by `range` dB. A `hold` timer keeps the gate open after a drop-out; attack/release smooth the gain transitions. `lookahead` runs detection ahead of emission so the gate is already opening when a transient reaches the output — batch calls stay sample-aligned (no silence prefix, no dropped tail); block hosts get the delay declared as atom `latency`.
 
 ```js
-import { gate } from '@audio/dynamics'
+import gate from '@audio/dynamics-gate'
 
 gate(data, { threshold: -40 })
 gate(data, { threshold: -35, range: -80, hold: 20, attack: 1, release: 150, lookahead: 5 })

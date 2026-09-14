@@ -15,7 +15,7 @@ Static waveshaping — no time state, no pumping. Maps input through a fixed tra
 Hard/high-drive clipping generates harmonics above Nyquist that fold back as audible aliasing. `oversample` (1/2/4/8, default `1`) runs the transfer at N× rate and decimates back down through a windowed-sinc anti-alias filter, same technique as [`@audio/saturate`](https://github.com/audiojs/saturate)'s oversampled shapers — `oversample: 1` is the exact non-oversampled path (no resampling, zero cost).
 
 ```js
-import { softclip } from '@audio/dynamics'
+import softclip from '@audio/dynamics-softclip'
 
 softclip(data, { curve: 'tanh', drive: 1.5 })
 softclip(data, { curve: 'cubic', drive: 2, ceiling: 0.9 })

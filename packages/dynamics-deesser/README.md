@@ -13,7 +13,7 @@ import deesser from '@audio/dynamics-deesser'
 Sibilance reduction, two architectures behind `mode`: **broadband** (default) — a biquad bandpass drives the envelope follower and the gain reduction is applied broadband; simple and transparent. **band** — an HP-filtered sidechain drives a dynamic peaking EQ at `freq`, so only the sibilance band is cut and program below it stays untouched even during deep reduction (wideband/split-band precedent).
 
 ```js
-import { deesser } from '@audio/dynamics'
+import deesser from '@audio/dynamics-deesser'
 
 deesser(data, { freq: 6500, threshold: -20 })
 deesser(data, { freq: 5500, q: 3, threshold: -24, ratio: 6 })

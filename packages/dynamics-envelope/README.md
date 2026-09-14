@@ -7,13 +7,13 @@ npm install @audio/dynamics-envelope
 ```
 
 ```js
-import envelope from '@audio/dynamics-envelope'
+import { envelope } from '@audio/dynamics-envelope'
 ```
 
 Every processor except `softclip` is built on this: a branching one-pole follower with separate attack/release time constants, peak or RMS detection.
 
 ```js
-import { envelope } from '@audio/dynamics'
+import { envelope } from '@audio/dynamics-envelope'
 
 let follow = envelope({ attack: 5, release: 100, detector: 'peak' })
 let level = []

@@ -15,7 +15,7 @@ Feed-forward soft-knee downward compressor — Giannoulis-Massberg topology. Env
 Downward compression (above threshold, reduces gain) is one half of the canonical four-quadrant dynamics taxonomy — downward/upward compression, downward/upward expansion (Giannoulis, Massberg & Reiss 2012; Izhaki, *Mixing Audio*). Setting `upThreshold` engages the other compression half: **upward compression** lifts quiet passages *toward* the threshold instead of squashing loud ones — the "OTT up" half popularized by Xfer OTT. Both curves read the same envelope and sum in the dB domain, so a single compressor call can glue loud material down and lift quiet material up at once.
 
 ```js
-import { compressor } from '@audio/dynamics'
+import compressor from '@audio/dynamics-compressor'
 
 compressor(data, { threshold: -18, ratio: 4 })
 compressor(data, { threshold: -24, ratio: 2, knee: 12, attack: 10, release: 200, makeup: 6 })

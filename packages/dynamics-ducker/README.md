@@ -13,7 +13,7 @@ import ducker from '@audio/dynamics-ducker'
 External-sidechain compressor. Main signal's gain tracks the level of a separate side signal.
 
 ```js
-import { ducker } from '@audio/dynamics'
+import ducker from '@audio/dynamics-ducker'
 
 // batch
 let podcast = ducker(music, voice, { threshold: -30, range: -12 })

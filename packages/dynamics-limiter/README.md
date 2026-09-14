@@ -13,7 +13,7 @@ import limiter from '@audio/dynamics-limiter'
 Lookahead brickwall limiter. A sliding-window maximum over the lookahead span drives the envelope, so gain reduction always covers every sample in transit — instant attack `lookahead` ms before a peak emerges, exponential release after it passes.
 
 ```js
-import { limiter } from '@audio/dynamics'
+import limiter from '@audio/dynamics-limiter'
 
 limiter(data, { ceiling: -0.3 })
 limiter(data, { ceiling: -1, lookahead: 10, release: 100 })

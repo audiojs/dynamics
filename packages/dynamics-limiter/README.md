@@ -25,7 +25,7 @@ limiter(data, { ceiling: -1, lookahead: 10, release: 100 })
 | `lookahead` | `5` | ms (introduces delay) |
 | `release` | `50` | ms |
 
-**Use when:** master bus ceiling, true-peak safety, preventing inter-sample clipping.<br>
+**Use when:** sample-peak control at the master bus. This limiter does not measure or constrain reconstructed inter-sample peaks.<br>
 **Not for:** musical dynamics shaping — use [compressor](#compressor). Low-latency paths — use [softclip](#softclip).
 
 ---

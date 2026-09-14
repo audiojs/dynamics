@@ -10,7 +10,7 @@ npm install @audio/dynamics-envelope
 import { envelope } from '@audio/dynamics-envelope'
 ```
 
-Every processor except `softclip` is built on this: a branching one-pole follower with separate attack/release time constants, peak or RMS detection.
+The common detector for the envelope-driven processors is a branching one-pole follower with separate attack/release time constants, peak or RMS detection.
 
 ```js
 import { envelope } from '@audio/dynamics-envelope'

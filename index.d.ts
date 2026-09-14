@@ -1,142 +1,56 @@
-type Writer = (chunk?: Float32Array) => Float32Array
-type Writer2 = (main?: Float32Array, side?: Float32Array) => Float32Array
+// Keep the umbrella API identical to its leaf exports.
+export { default as compressor, compressorGain, upwardGain } from '@audio/dynamics-compressor'
+export { default as limiter } from '@audio/dynamics-limiter'
+export { default as gate } from '@audio/dynamics-gate'
+export { default as expander, upwardExpanderGain } from '@audio/dynamics-expander'
+export { default as unlimit, unlimitGain } from '@audio/dynamics-unlimit'
+export { default as deesser } from '@audio/dynamics-deesser'
+export { default as ducker } from '@audio/dynamics-ducker'
+export { default as softclip } from '@audio/dynamics-softclip'
+export { default as compand } from '@audio/dynamics-compand'
+export { default as transientShaper } from '@audio/dynamics-transient-shaper'
+export { default as multiband } from '@audio/dynamics-multiband'
+export { envelope } from '@audio/dynamics-envelope'
+export { default as opto } from '@audio/dynamics-opto'
+export { default as fet } from '@audio/dynamics-fet'
+export { default as vca } from '@audio/dynamics-vca'
+export { default as varimu } from '@audio/dynamics-varimu'
+export { default as leveler } from '@audio/dynamics-leveler'
 
-export interface EnvelopeOpts {
-  sampleRate?: number
-  attack?: number       // ms
-  release?: number      // ms
-  detector?: 'peak' | 'rms'
-  rmsWindow?: number    // samples
+export type { CompandOptions } from '@audio/dynamics-compand'
+export type { CompressorOptions } from '@audio/dynamics-compressor'
+export type { DeesserOptions } from '@audio/dynamics-deesser'
+export type { DuckerOptions } from '@audio/dynamics-ducker'
+export type { EnvelopeOptions } from '@audio/dynamics-envelope'
+export type { ExpanderOptions } from '@audio/dynamics-expander'
+export type { FetOptions } from '@audio/dynamics-fet'
+export type { GateOptions } from '@audio/dynamics-gate'
+export type { LevelerOptions } from '@audio/dynamics-leveler'
+export type { LimiterOptions } from '@audio/dynamics-limiter'
+export type { MultibandBandOptions, MultibandOptions } from '@audio/dynamics-multiband'
+export type { OptoOptions } from '@audio/dynamics-opto'
+export type { SoftclipOptions } from '@audio/dynamics-softclip'
+export type { TransientShaperOptions } from '@audio/dynamics-transient-shaper'
+export type { UnlimitOptions } from '@audio/dynamics-unlimit'
+export type { VarimuOptions } from '@audio/dynamics-varimu'
+export type { VcaOptions } from '@audio/dynamics-vca'
+
+// Retain the existing umbrella option names for consumers.
+export type { EnvelopeOptions as EnvelopeOpts } from '@audio/dynamics-envelope'
+export type { CompressorOptions as CompressorOpts } from '@audio/dynamics-compressor'
+export type { LimiterOptions as LimiterOpts } from '@audio/dynamics-limiter'
+export type { ExpanderOptions as ExpanderOpts } from '@audio/dynamics-expander'
+export type { UnlimitOptions as UnlimitOpts } from '@audio/dynamics-unlimit'
+export type { DuckerOptions as DuckerOpts } from '@audio/dynamics-ducker'
+export type { SoftclipOptions as SoftclipOpts } from '@audio/dynamics-softclip'
+export type { CompandOptions as CompandOpts } from '@audio/dynamics-compand'
+import type { GateOptions } from '@audio/dynamics-gate'
+export interface GateOpts extends GateOptions {
+  /** @deprecated Ignored by this processor; the RMS window is fixed at 256 samples. */
+  rmsWindow?: number
 }
-
-export interface CompressorOpts extends EnvelopeOpts {
-  threshold?: number    // dB
-  ratio?: number
-  knee?: number         // dB
-  makeup?: number       // dB
-  depth?: number        // scales the summed up+down gain before makeup (OTT "Depth"), default 1
-  upThreshold?: number | null   // dB; null (default) disables upward compression
-  upRatio?: number      // default 2
-  upKnee?: number       // dB, default 6
-  upRange?: number      // dB, max upward lift, default 12
+import type { DeesserOptions } from '@audio/dynamics-deesser'
+export interface DeesserOpts extends DeesserOptions {
+  /** @deprecated Ignored by this processor; the RMS window is fixed at 256 samples. */
+  rmsWindow?: number
 }
-
-export interface LimiterOpts {
-  sampleRate?: number
-  ceiling?: number      // dB (e.g. -0.3)
-  lookahead?: number    // ms
-  release?: number      // ms
-}
-
-export interface GateOpts extends EnvelopeOpts {
-  threshold?: number    // dB
-  range?: number        // dB reduction when closed (e.g. -60)
-  hold?: number         // ms
-}
-
-export interface ExpanderOpts extends EnvelopeOpts {
-  mode?: 'downward' | 'upward'   // default 'downward'
-  threshold?: number
-  ratio?: number
-  knee?: number
-  range?: number        // dB; downward: max reduction, negative (e.g. -40); upward: max lift, positive (e.g. 20)
-}
-
-export interface UnlimitOpts {
-  sampleRate?: number
-  amount?: number        // dB, max crest restoration (default 0.5, range 0-18)
-  drive?: number         // dB of lift per dB of detected transientness (default 2)
-  ceiling?: number | null   // dBFS; null (default): no post-lift guard, peaks may exceed 0 dBFS
-  fastAttack?: number    // ms, transient-detector fast envelope (default 0.5)
-  fastRelease?: number   // ms (default 20)
-  slowAttack?: number    // ms, transient-detector slow envelope (default 20)
-  slowRelease?: number   // ms (default 200)
-}
-
-export interface DeesserOpts extends EnvelopeOpts {
-  freq?: number         // Hz, sibilance center
-  q?: number
-  threshold?: number
-  ratio?: number
-  knee?: number
-}
-
-export interface DuckerOpts extends EnvelopeOpts {
-  threshold?: number
-  ratio?: number
-  knee?: number
-  range?: number        // dB, max reduction
-}
-
-export interface SoftclipOpts {
-  curve?: 'tanh' | 'atan' | 'cubic' | 'sin' | 'hard'
-  drive?: number
-  ceiling?: number
-  fs?: number            // sample rate, used by oversample's resampler; default 44100
-  oversample?: 1 | 2 | 4 | 8   // default 1 (exact non-oversampled behavior)
-}
-
-export interface CompandOpts extends EnvelopeOpts {
-  points?: [number, number][]   // [[inDb, outDb], ...]
-}
-
-export declare const compressor: {
-  (data: Float32Array, opts?: CompressorOpts): Float32Array
-  (opts?: CompressorOpts): Writer
-}
-
-// Pure gain-curve functions (dB in, dB out) — the compressor kernel's building
-// blocks, exposed for custom envelope-driven processing.
-export declare function compressorGain(levelDb: number, threshold: number, ratio: number, kneeDb: number): number
-export declare function upwardGain(levelDb: number, threshold: number, ratio: number, kneeDb: number, rangeDb?: number): number
-
-export declare const limiter: {
-  (data: Float32Array, opts?: LimiterOpts): Float32Array
-  (opts?: LimiterOpts): Writer
-}
-
-export declare const gate: {
-  (data: Float32Array, opts?: GateOpts): Float32Array
-  (opts?: GateOpts): Writer
-}
-
-export declare const expander: {
-  (data: Float32Array, opts?: ExpanderOpts): Float32Array
-  (opts?: ExpanderOpts): Writer
-}
-
-// Upward expansion's pure gain curve (dB in, dB out) — see upwardGain for the
-// compressor's below-threshold complement.
-export declare function upwardExpanderGain(levelDb: number, threshold: number, ratio: number, kneeDb: number, rangeDb: number): number
-
-export declare const unlimit: {
-  (data: Float32Array, opts?: UnlimitOpts): Float32Array
-  (opts?: UnlimitOpts): Writer
-}
-
-// Pure mapping: transientness (dB, fast envelope above slow) → target lift (dB),
-// before ballistic smoothing. Built on upwardExpanderGain — see @audio/dynamics-unlimit
-// for the knee-placement rationale (threshold pinned so r(0) = 0 exactly).
-export declare function unlimitGain(fastDb: number, slowDb: number, amount: number, drive: number): number
-
-export declare const deesser: {
-  (data: Float32Array, opts?: DeesserOpts): Float32Array
-  (opts?: DeesserOpts): Writer
-}
-
-export declare const ducker: {
-  (main: Float32Array, side: Float32Array, opts?: DuckerOpts): Float32Array
-  (opts?: DuckerOpts): Writer2
-}
-
-export declare const softclip: {
-  (data: Float32Array, opts?: SoftclipOpts): Float32Array
-  (opts?: SoftclipOpts): Writer
-}
-
-export declare const compand: {
-  (data: Float32Array, opts?: CompandOpts): Float32Array
-  (opts?: CompandOpts): Writer
-}
-
-export declare function envelope(opts?: EnvelopeOpts): (x: number) => number

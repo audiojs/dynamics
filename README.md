@@ -1,8 +1,8 @@
-## @audio/dynamics [![test](https://github.com/audiojs/dynamics/actions/workflows/test.yml/badge.svg)](https://github.com/audiojs/dynamics/actions/workflows/test.yml) [![npm](https://img.shields.io/npm/v/@audio/dynamics)](https://npmjs.org/dynamics-processor) [![license](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/audiojs/dynamics/blob/main/LICENSE)
+## @audio/dynamics [![test](https://github.com/audiojs/dynamics/actions/workflows/test.yml/badge.svg)](https://github.com/audiojs/dynamics/actions/workflows/test.yml) [![npm](https://img.shields.io/npm/v/@audio/dynamics)](https://www.npmjs.com/package/@audio/dynamics) [![license](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/audiojs/dynamics/blob/main/LICENSE)
 
 Try it in the browser: [Loudness meter and normalizer](https://audiojs.dev/util/loudness/). Runs on this package, nothing is uploaded.
 
-Dynamics processing — compressor, limiter, gate, expander, de-limiter, de-esser, ducker, softclip, compand, multiband. All built on a single branching envelope follower; differences are purely in the gain curve (multiband composes N compressors across an LR crossover). Part of [audiojs](https://github.com/audiojs).
+Dynamics processing — compressor, limiter, gate, expander, de-limiter, de-esser, ducker, softclip, compand, multiband. The family includes envelope-driven gain control, lookahead limiting, waveshaping and whole-buffer level correction. Part of [audiojs](https://github.com/audiojs).
 
 | | Kind | Gain function | Typical use |
 |---|---|---|---|
@@ -25,25 +25,44 @@ npm install @audio/dynamics
 ```
 
 ```js
-import { compressor, limiter, gate, ducker } from '@audio/dynamics'
+import { compressor, limiter } from '@audio/dynamics'
 
-let glued = compressor(samples, { threshold: -18, ratio: 4, attack: 5, release: 100 })
-let safe = limiter(glued, { ceiling: -0.3, lookahead: 5 })
+const sampleRate = 48000
+const samples = Float32Array.from({ length: 4800 }, (_, i) =>
+  0.8 * Math.sin(2 * Math.PI * 220 * i / sampleRate))
+const opts = { sampleRate, threshold: -18, ratio: 4, attack: 5, release: 100 }
+const compressed = compressor(samples, opts)
+const limited = limiter(compressed, { sampleRate, ceiling: -1, lookahead: 5 })
+console.log(limited.length) // 4800; samples and compressed are preserved
 
-let write = compressor({ threshold: -18, ratio: 4 })    // streaming
-write(block1)
-write(block2)
-write()                                                  // → remaining samples
-
-let ducked = ducker(music, voice, { threshold: -30, range: -12 })
+// Each writer owns its history. Keep it for successive chunks, then flush once.
+const write = compressor(opts)
+const blocks = [write(samples.subarray(0, 256)), write(samples.subarray(256)), write()]
+console.log(blocks.reduce((n, block) => n + block.length, 0)) // 4800
 ```
 
-> Mono `Float32Array` in/out. For stereo, process channels independently or feed a linked detector. Sample rate defaults to 44100; pass `sampleRate` for anything else.
+For one processor: `npm install @audio/dynamics-compressor`, then `import compressor from '@audio/dynamics-compressor'`. The umbrella re-exports the same functions and types. Existing `CompressorOpts`, `GateOpts` and other legacy option names remain available alongside the leaf names (`CompressorOptions`, `GateOptions`, etc.).
+
+### Processing expectations
+
+| Functions | Buffer ownership / streaming | Sample-rate option |
+|---|---|---|
+| `compressor`, `limiter`, `gate`, `expander`, `unlimit`, `deesser`, `ducker`, `compand`, `opto`, `fet`, `vca`, `varimu` | Batch calls return a new buffer. Calling with options returns a writer; keep it across chunks and call with no arguments to flush. | `sampleRate` |
+| `softclip` | Returns a new buffer. Its writer buffers until flush when `oversample > 1`. | `fs` |
+| `transientShaper` | Mutates and returns the input. Reuse the same options object across chunks; a fresh object resets the envelopes. | `fs` |
+| `multiband`, `leveler` | Mutate and return the input. Whole-buffer processing; no writer form. | `fs` |
+| `envelope` | Returns a stateful sample → level function. Create another follower to reset. | `sampleRate` |
+
+PCM is mono `Float32Array`; process channels with separate state/writers. Sample rate defaults to 44100 Hz. Gains/thresholds are dB and attack/release/lookahead are milliseconds unless stated otherwise: `softclip.drive` and transient-shaper gains are linear, while `leveler.frame` is seconds. Do not substitute `fs` for `sampleRate` indiscriminately; only some processors accept that alias.
+
+Batch compression and a fresh writer fed the same signal produce the same samples. Lookahead writers can return fewer samples until flush; concatenate every returned block, including the final flush. An empty chunk is a zero-length write, not a flush. Treat flush as the end of a signal and create a new writer to reset. Options are construction settings, not a live automation interface.
+
+The leaf `/audio` exports are host processor factories with their own parameter metadata. Some controls restart their processor, and some factories require a whole render (`streaming: false`); check those limits before using an AudioWorklet adapter.
 
 
 ## envelope
 
-Every processor except `softclip` is built on this: a branching one-pole follower with separate attack/release time constants, peak or RMS detection.
+The common detector for the envelope-driven processors is a branching one-pole follower with separate attack/release time constants, peak or RMS detection.
 
 ```js
 import { envelope } from '@audio/dynamics'
@@ -113,7 +132,7 @@ limiter(data, { ceiling: -1, lookahead: 10, release: 100 })
 | `lookahead` | `5` | ms (introduces delay) |
 | `release` | `50` | ms |
 
-**Use when:** master bus ceiling, true-peak safety, preventing inter-sample clipping.<br>
+**Use when:** sample-peak control at the master bus. This limiter does not measure or constrain reconstructed inter-sample peaks.<br>
 **Not for:** musical dynamics shaping — use [compressor](#compressor). Low-latency paths — use [softclip](#softclip).
 
 
@@ -361,6 +380,21 @@ Manifest params (3-band one-knob form): `low`, `high`, `threshold`, `ratio`, `up
 **Use when:** mastering-stage glue across the spectrum; OTT-style "upward + downward everywhere" aggressive multiband; taming one band without touching others.<br>
 **Not for:** single-band dynamics — use [compressor](#compressor) directly.
 
+
+## Additional processors
+
+| Export | Behavior and detailed options |
+|---|---|
+| `transientShaper` | [Attack/sustain gain shaping](https://github.com/audiojs/dynamics/blob/main/packages/dynamics-transient-shaper/README.md); state continues on the reused options object. |
+| `opto` | [Optical-style compression](https://github.com/audiojs/dynamics/blob/main/packages/dynamics-opto/README.md), RMS detection and program-dependent release. |
+| `fet` | [FET-style compression](https://github.com/audiojs/dynamics/blob/main/packages/dynamics-fet/README.md), fast peak detection. |
+| `vca` | [VCA-style compression](https://github.com/audiojs/dynamics/blob/main/packages/dynamics-vca/README.md), feed-forward peak detection and a firm knee. |
+| `varimu` | [Variable-mu-style compression](https://github.com/audiojs/dynamics/blob/main/packages/dynamics-varimu/README.md), level-dependent ratio. |
+| `leveler` | [Dialogue gain riding](https://github.com/audiojs/dynamics/blob/main/packages/dynamics-leveler/README.md), whole-buffer analysis and smoothing. |
+
+These compressor models describe gain-control behavior; they do not model a hardware unit's full circuit or coloration.
+
+The umbrella also exposes pure dB gain-curve helpers: `compressorGain(levelDb, threshold, ratio, kneeDb)`, `upwardGain(levelDb, threshold, ratio, kneeDb, rangeDb?)`, `upwardExpanderGain(levelDb, threshold, ratio, kneeDb, rangeDb)`, and `unlimitGain(fastDb, slowDb, amount, drive)`. They return gain in dB and do not modify audio. See the corresponding leaf declarations for parameter details.
 
 ## See also
 

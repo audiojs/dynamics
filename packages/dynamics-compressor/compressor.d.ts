@@ -22,6 +22,10 @@ export interface CompressorOptions {
   upKnee?: number
   /** dB, max upward lift, default 12 */
   upRange?: number
+  /** envelope detector, default 'peak' */
+  detector?: 'peak' | 'rms'
+  /** RMS window, samples, default 256 (only used when detector is 'rms') */
+  rmsWindow?: number
   /** sample rate, Hz, default 44100 (alias `fs`) */
   sampleRate?: number
   /** alias of sampleRate, Hz, default 44100 */

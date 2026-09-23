@@ -225,21 +225,21 @@ The default mode lifts by transient **deficit**, not transient presence — the 
 
 ## deesser
 
-Sibilance reduction, two architectures behind `mode`: **broadband** (default) — a biquad bandpass drives the envelope follower and the gain reduction is applied broadband; simple and transparent. **band** — an HP-filtered sidechain drives a dynamic peaking EQ at `freq`, so only the sibilance band is cut and program below it stays untouched even during deep reduction (wideband/split-band precedent).
+Sibilance reduction, two architectures behind `mode`: **broadband** (default) — a biquad bandpass drives the envelope follower and the gain reduction is applied broadband; simple and transparent. **band** — an HP-filtered sidechain drives a dynamic peaking EQ at `fc`, so only the sibilance band is cut and program below it stays untouched even during deep reduction (wideband/split-band precedent).
 
 ```js
 import { deesser } from '@audio/dynamics'
 
-deesser(data, { freq: 6500, threshold: -20 })
-deesser(data, { freq: 5500, q: 3, threshold: -24, ratio: 6 })
-deesser(data, { mode: 'band', freq: 7000, threshold: -30, ratio: 8 })
+deesser(data, { fc: 6500, threshold: -20 })
+deesser(data, { fc: 5500, Q: 3, threshold: -24, ratio: 6 })
+deesser(data, { mode: 'band', fc: 7000, threshold: -30, ratio: 8 })
 ```
 
 | Param | Default | |
 |---|---|---|
 | `mode` | `'broadband'` | `'broadband'` \| `'band'` |
-| `freq` | `6500` | Hz, sibilance center |
-| `q` | `2` | bandpass Q (broadband) / `1.4` peaking-cut Q (band) |
+| `fc` | `6500` | Hz, sibilance center (`freq` still accepted) |
+| `Q` | `2` | bandpass Q (broadband) / `1.4` peaking-cut Q (band) (`q` still accepted) |
 | `threshold` | `-20` | dB (on sidechain level) |
 | `ratio` | `4` | — |
 | `knee` | `6` | dB (broadband only) |

@@ -10,8 +10,8 @@ export const deesser = (ctx) => {
 	const opts = {
 		sampleRate: ctx.sampleRate,
 		mode: ctx.params.mode,
-		freq: ctx.params.freq[0],
-		q: ctx.params.q[0],
+		fc: ctx.params.fc[0],
+		Q: ctx.params.Q[0],
 		threshold: ctx.params.threshold[0],
 		ratio: ctx.params.ratio[0],
 		knee: ctx.params.knee[0],
@@ -28,8 +28,8 @@ export const deesser = (ctx) => {
 deesser.channels = 'any'
 deesser.params = {
 	mode:      { type: 'enum', values: ['broadband', 'band'], default: 'broadband', flags: ['restart'] },
-	freq:      { type: 'number', min: 2000, max: 16000, default: 6500, unit: 'Hz', flags: ['restart'] },
-	q:         { type: 'number', min: 0.3, max: 10, default: 2, flags: ['restart'] },
+	fc:        { type: 'number', min: 2000, max: 16000, default: 6500, unit: 'Hz', flags: ['restart'], alias: 'freq' },
+	Q:         { type: 'number', min: 0.3, max: 10, default: 2, flags: ['restart'], alias: 'q' },
 	threshold: { type: 'number', min: -60, max: 0, default: -20, unit: 'dB', flags: ['restart'] },
 	ratio:     { type: 'number', min: 1, max: 20, default: 4, flags: ['restart'] },
 	knee:      { type: 'number', min: 0, max: 24, default: 6, unit: 'dB', flags: ['restart'] },

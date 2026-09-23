@@ -10,7 +10,7 @@ npm install @audio/dynamics-transient-shaper
 import transientShaper from '@audio/dynamics-transient-shaper'
 ```
 
-Dual envelope followers (1 ms fast / 50 ms slow) separate transient from sustain: `transient = max(fast − slow, 0) / slow`, near 1 on attacks and near 0 on sustained material. Output gain is `1 + attackGain·transient + sustainGain·(1 − transient)` — a linear multiplier, not dB: `attackGain: 1` roughly doubles attack peaks, `attackGain: -1` can null them out. Mutates `data` in place and returns it; no separate streaming factory — pass the same `params` object across calls (it carries `_envFast`/`_envSlow`) to continue state across chunks.
+A level follower (1 ms attack, 100 ms release) and a slow copy of it (50 ms attack) separate transient from sustain: `transient = (level − slow) / level`, from 0 to 1: near 1 on attacks, near 0 on held material. Output gain is `1 + attackGain·transient + sustainGain·(1 − transient)`, a linear multiplier (not dB) that stays between `1 + attackGain` and `1 + sustainGain`: `attackGain: 1` roughly doubles attack peaks, `attackGain: -1` can null them out. Mutates `data` in place and returns it; no separate streaming factory — pass the same `params` object across calls (it carries `_envFast`/`_envSlow`) to continue state across chunks.
 
 ```js
 transientShaper(data, { attackGain: 0.5, sustainGain: -0.3 })   // punchier attacks, tucked sustain

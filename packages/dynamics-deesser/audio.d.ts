@@ -13,8 +13,12 @@ export interface DeesserOptions {
   /** default "broadband" */
   "mode"?: "broadband" | "band"
   /** 2000..16000 Hz (default 6500) */
+  "fc"?: Auto
+  /** @deprecated former name of "fc" */
   "freq"?: Auto
   /** 0.3..10 (default 2) */
+  "Q"?: Auto
+  /** @deprecated former name of "Q" */
   "q"?: Auto
   /** -60..0 dB (default -20) */
   "threshold"?: Auto
@@ -37,9 +41,9 @@ export declare const deesser: {
     /** default "broadband" [restart] */
     "mode": { type: "enum", values: ["broadband","band"], default: "broadband" }
     /** 2000..16000 Hz (default 6500) [restart] */
-    "freq": { type: "number", default: 6500 }
+    "fc": { type: "number", default: 6500, alias: "freq" }
     /** 0.3..10 (default 2) [restart] */
-    "q": { type: "number", default: 2 }
+    "Q": { type: "number", default: 2, alias: "q" }
     /** -60..0 dB (default -20) [restart] */
     "threshold": { type: "number", default: -20 }
     /** 1..20 (default 4) [restart] */

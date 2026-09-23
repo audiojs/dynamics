@@ -400,18 +400,27 @@ test('unlimit — streaming matches batch; deterministic; no NaN', () => {
 
 test('deesser — attenuates HF band, passes LF', () => {
   let lowMix = sine(200, fs >> 1, 0.5)
-  let outLow = deesser(lowMix, { freq: 6500, threshold: -30, ratio: 8 })
+  let outLow = deesser(lowMix, { fc: 6500, threshold: -30, ratio: 8 })
   almost(rms(outLow), rms(lowMix), rms(lowMix) * 0.1, 'LF passes')
 
   let sib = sine(6500, fs >> 1, 0.5)
-  let outSib = deesser(sib, { freq: 6500, threshold: -30, ratio: 8, attack: 1, release: 5 })
+  let outSib = deesser(sib, { fc: 6500, threshold: -30, ratio: 8, attack: 1, release: 5 })
   ok(rms(outSib) < rms(sib) * 0.8, 'sibilance reduced')
+})
+
+test('deesser — former option names freq/q still work', () => {
+  let x = sine(6000, fs >> 2, 0.5)
+  for (let mode of ['broadband', 'band']) {
+    let a = deesser(Float32Array.from(x), { mode, fc: 5500, Q: 3, threshold: -30 })
+    let b = deesser(Float32Array.from(x), { mode, freq: 5500, q: 3, threshold: -30 })
+    ok(a.every((v, i) => v === b[i]), `${mode}: { freq, q } ≡ { fc, Q }`)
+  }
 })
 
 test('deesser — band mode cuts only the sibilance band (dynamic peaking EQ)', () => {
   let n = fs >> 1, x = new Float32Array(n)
   for (let i = 0; i < n; i++) x[i] = 0.3 * Math.sin(2 * Math.PI * 220 * i / fs) + 0.3 * Math.sin(2 * Math.PI * 7000 * i / fs)
-  let opts = { freq: 7000, threshold: -30, ratio: 8, attack: 1, release: 20 }
+  let opts = { fc: 7000, threshold: -30, ratio: 8, attack: 1, release: 20 }
   let band = deesser(x, { ...opts, mode: 'band' })
   ok(energyAt(band, 7000) < energyAt(x, 7000) * 0.7, 'sibilance band cut')
   ok(energyAt(band, 220) > energyAt(x, 220) * 0.9, 'program below the band untouched')
@@ -511,6 +520,37 @@ test('transientShaper — produces output without NaN', () => {
 	ok(data.some(x => Math.abs(x) > 0.001), 'has output')
 })
 
+
+test('transientShaper — held tones keep their level; the gain stays between the two gains', () => {
+	// The detector divided by the slow envelope (≈0 at an onset): gains reached 35× at
+	// attackGain 2, and a held sine read as ~0.5 "transient", so attackGain raised steady tones
+	let hits = new Float32Array(fs)
+	for (let i = 0; i < fs; i++) { let t = (i % (fs / 4)) / fs; hits[i] = 0.2 * Math.sin(2 * Math.PI * 110 * i / fs) + 0.7 * Math.exp(-t * 30) * Math.sin(2 * Math.PI * 80 * t) }
+	for (let [attackGain, sustainGain] of [[2, 0], [-1, 0], [0, 2], [0, -1], [2, -1], [-1, 2]]) {
+		let x = Float32Array.from(hits), y = transientShaper(Float32Array.from(x), { attackGain, sustainGain, fs })
+		let lo = 1 + Math.min(attackGain, sustainGain), hi = 1 + Math.max(attackGain, sustainGain), bad = 0
+		for (let i = 0; i < x.length; i++) if (Math.abs(y[i]) > hi * Math.abs(x[i]) + 1e-6 || Math.abs(y[i]) < lo * Math.abs(x[i]) - 1e-6) bad++
+		is(bad, 0, `attack ${attackGain}, sustain ${sustainGain}: gain within [${lo}, ${hi}]`)
+	}
+	let tone = sine(440, fs, 0.5), held = tone.subarray(fs / 2)
+	let db = 20 * Math.log10(rms(transientShaper(Float32Array.from(tone), { attackGain: 2, fs }).subarray(fs / 2)) / rms(held))
+	ok(Math.abs(db) < 0.5, `held tone at attackGain 2: ${db.toFixed(2)} dB`)
+	let hit = x => peak(x.subarray(fs / 4, fs / 4 + 882)), tail = x => rms(x.subarray(fs / 4 + 4410, fs / 2))
+	let punchy = transientShaper(Float32Array.from(hits), { attackGain: 1, fs }), dry = hits
+	ok(hit(punchy) / hit(dry) > 1.4, `attackGain 1 lifts the hit peak ×${(hit(punchy) / hit(dry)).toFixed(2)}`)
+	let tucked = transientShaper(Float32Array.from(hits), { sustainGain: -0.5, fs })
+	ok(tail(tucked) / tail(dry) < 0.6, `sustainGain −0.5 tucks the tail ×${(tail(tucked) / tail(dry)).toFixed(2)}`)
+})
+
+test('transientShaper — state carried on the options object: chunked ≡ one call', () => {
+	let x = sine(220, fs, 0.5)
+	for (let i = 0; i < fs; i += fs / 4) x.fill(0, i, i + 2000)
+	let one = transientShaper(Float32Array.from(x), { attackGain: 1, sustainGain: -0.5, fs })
+	let opts = { attackGain: 1, sustainGain: -0.5, fs }, y = Float32Array.from(x)
+	for (let i = 0; i < fs; i += 997) transientShaper(y.subarray(i, Math.min(fs, i + 997)), opts)
+	let m = 0; for (let i = 0; i < fs; i++) m = Math.max(m, Math.abs(y[i] - one[i]))
+	is(m, 0, 'chunked ≡ one call')
+})
 
 // single-bin rms (Goertzel)
 function energyAt (data, freq, sr = 44100) {

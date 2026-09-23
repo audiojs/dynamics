@@ -6,7 +6,7 @@ import { writer, concat, db2lin, lin2db } from './util.js'
 // De-esser — two canonical architectures behind one entry, picked by `mode`:
 //  - broadband (default): bandpass sidechain (sibilance band) drives a
 //    compressor whose gain reduction is applied broadband — simple, transparent.
-//  - band: HP-filtered sidechain drives a dynamic peaking EQ at `freq` — only
+//  - band: HP-filtered sidechain drives a dynamic peaking EQ at `fc` — only
 //    the sibilance band is cut, so program below the band stays untouched even
 //    during deep reduction (wideband/split-band precedent).
 export default function deesser(data, opts) {
@@ -21,13 +21,13 @@ export function deesserStream(opts = {}) {
 
 function broadbandStream(opts = {}) {
   let sr = opts.sampleRate || 44100
-  let freq = opts.freq ?? 6500
-  let q = opts.q ?? 2
+  let fc = opts.fc ?? opts.freq ?? 6500   // `freq`, `q`: former names
+  let Q = opts.Q ?? opts.q ?? 2
   let threshold = opts.threshold ?? -20
   let ratio = opts.ratio ?? 4
   let knee = opts.knee ?? 6
 
-  let bp = bandpass(freq, q, sr)
+  let bp = bandpass(fc, Q, sr)
   let bqState = state()
   let env = envelope({ sampleRate: sr, attack: opts.attack ?? 1, release: opts.release ?? 40, detector: opts.detector })
 
@@ -46,23 +46,23 @@ function broadbandStream(opts = {}) {
   }
 }
 
-// Dynamic peaking-EQ de-esser: detection runs on an HP copy (above `freq`);
-// when the envelope exceeds threshold, a negative peaking gain at `freq`
+// Dynamic peaking-EQ de-esser: detection runs on an HP copy (above `fc`);
+// when the envelope exceeds threshold, a negative peaking gain at `fc`
 // engages on the audio path. EQ gain follows the envelope continuously —
 // recomputed every `block` samples for smoothness without per-sample coef
 // cost. Unlike a static shelf, the cut only engages on loud 's' / 'sh'
 // events, so dark consonants aren't thinned.
 function bandStream(opts = {}) {
   let sr = opts.sampleRate || 44100
-  let freq = opts.freq ?? 6500
-  let q = opts.q ?? 1.4
+  let fc = opts.fc ?? opts.freq ?? 6500
+  let Q = opts.Q ?? opts.q ?? 1.4
   let threshold = opts.threshold ?? -20
   let ratio = opts.ratio ?? 4
   let attackMs = opts.attack ?? 1
   let releaseMs = opts.release ?? 40
   let block = opts.block ?? 64
 
-  let scC = highpass(freq, 0.707, sr)
+  let scC = highpass(fc, 0.707, sr)
   let scS = state()
   let eqS = state()
   let aA = Math.exp(-1 / (attackMs * 0.001 * sr))
@@ -93,7 +93,7 @@ function bandStream(opts = {}) {
         let target = 0
         if (peakEnv > thLin) target = -lin2db(peakEnv / thLin) * (1 - 1 / ratio)  // negative dB cut
         eqDb = target < eqDb ? aBlkA * eqDb + (1 - aBlkA) * target : aBlkR * eqDb + (1 - aBlkR) * target
-        biquad(out.subarray(pos, end), peaking(freq, q, sr, eqDb), eqS)
+        biquad(out.subarray(pos, end), peaking(fc, Q, sr, eqDb), eqS)
       }
       return out
     },

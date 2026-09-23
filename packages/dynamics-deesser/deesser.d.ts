@@ -3,8 +3,12 @@ export interface DeesserOptions {
   /** 'broadband' (simple, transparent) or 'band' (program below the sibilance band stays untouched), default 'broadband' */
   mode?: 'broadband' | 'band'
   /** Hz, sibilance center, default 6500 */
+  fc?: number
+  /** @deprecated former name of `fc` */
   freq?: number
   /** bandpass Q (broadband mode) / peaking-cut Q (band mode), default 2 (broadband) / 1.4 (band) */
+  Q?: number
+  /** @deprecated former name of `Q` */
   q?: number
   /** dB, on sidechain level, default -20 */
   threshold?: number

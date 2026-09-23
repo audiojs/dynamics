@@ -1,4 +1,4 @@
-/** Transient shaper — dual fast/slow envelope followers separate transient from sustain, then independently boost/cut each. Mutates `data` in place; no streaming form. */
+/** Transient shaper — a level follower and a slow copy of it separate transient from sustain, then independently boost/cut each. Mutates `data` in place; no streaming form. */
 export interface TransientShaperOptions {
   /** linear gain delta applied to the transient portion (not dB): 1 ≈ double attack peaks, -1 can null them out, default 0 */
   attackGain?: number

@@ -19,6 +19,7 @@ export const leveler = (ctx) => {
 			frame: params.frame[0],
 			maxGain: params.maxGain[0],
 			smooth: Math.round(params.smooth[0]),
+			gate: params.gate[0],
 		}
 		for (let c = 0; c < inp.length; c++) {
 			out[c].set(inp[c])
@@ -34,4 +35,5 @@ leveler.params = {
 	frame:   { type: 'number', min: 0.05, max: 5, default: 0.5, unit: 's' },
 	maxGain: { type: 'number', min: 0, max: 30, default: 12, unit: 'dB' },
 	smooth:  { type: 'number', min: 0, max: 30, default: 5 },
+	gate:    { type: 'number', min: 0, max: 60, default: 20, unit: 'dB' },
 }

@@ -1,7 +1,7 @@
 {
   "name": "@audio/dynamics-compressor",
-  "version": "0.2.1",
-  "description": "Feed-forward soft-knee compressor (Giannoulis-Massberg topology)",
+  "version": "0.3.0",
+  "description": "Feed-forward soft-knee compressor, gain reduction smoothed in the log domain (Giannoulis, Massberg & Reiss 2012)",
   "type": "module",
   "sideEffects": false,
   "main": "compressor.js",
@@ -20,9 +20,6 @@
     "audio.d.ts",
     "compressor.d.ts"
   ],
-  "dependencies": {
-    "@audio/dynamics-envelope": "^0.1.0"
-  },
   "keywords": [
     "audio",
     "dsp",

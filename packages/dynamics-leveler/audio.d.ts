@@ -18,6 +18,8 @@ export interface LevelerOptions {
   "maxGain"?: Auto
   /** 0..30 (default 5) */
   "smooth"?: Auto
+  /** 0..60 dB (default 20) */
+  "gate"?: Auto
   at?: number | string
   duration?: number | string
 }
@@ -36,5 +38,7 @@ export declare const leveler: {
     "maxGain": { type: "number", default: 12 }
     /** 0..30 (default 5) */
     "smooth": { type: "number", default: 5 }
+    /** 0..60 dB (default 20) */
+    "gate": { type: "number", default: 20 }
   }
 }

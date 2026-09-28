@@ -93,6 +93,49 @@ test('compressor — streaming matches batch length', () => {
 })
 
 
+// Giannoulis, Massberg & Reiss, JAES 60(6), 2012: static curve eq. (4); gain reduction smoothed in the log domain
+// after the gain computer, eq. (23), by the smooth decoupled peak detector, eq. (17); α = e^(−1/(τ·fs)), eq. (7).
+
+test('compressor: settled gain is the static curve of eq. (4), through the knee', () => {
+  let T = -24, R = 3, W = 6
+  for (let level of [-40, -27.1, -26, -24, -22, -21, -20.9, -10, 0]) {
+    let x = new Float32Array(fs).fill(10 ** (level / 20))
+    let y = compressor(x, { threshold: T, ratio: R, knee: W, sampleRate: fs })
+    let d = level - T, want = 2 * d < -W ? 0 : 2 * Math.abs(d) <= W ? (1 / R - 1) * (d + W / 2) ** 2 / (2 * W) : (1 / R - 1) * d
+    almost(db(y[fs - 1] / x[fs - 1]), want, 1e-6, `${level} dB in: ${want.toFixed(3)} dB`)
+  }
+})
+
+test('compressor: attack and release are the gain reduction\'s time constants at any depth, eq. (7)', () => {
+  let T = -24, R = 3, tA = 5, tR = 100, n = fs
+  for (let over of [3, 10, 20]) {
+    let A = 10 ** ((T + over) / 20), x = new Float32Array(n).fill(A)
+    x.fill(10 ** (-60 / 20), n / 2)
+    let y = compressor(x, { threshold: T, ratio: R, knee: 0, attack: tA, release: tR, sampleRate: fs })
+    let G = over * (1 - 1 / R), gr = i => -db(y[i] / x[i])
+    // attack: y₁ jumps to G, y follows it by one pole: G·(1 − e^(−t/τA))
+    let iA = Math.round(tA * fs / 1000)
+    almost(gr(iA - 1) / G, 1 - Math.exp(-1), 1e-3, `+${over} dB: ${(100 * gr(iA - 1) / G).toFixed(1)}% of the reduction after τA`)
+    // release: y₁ decays by e^(−t/τR), y follows by e^(−t/τA): G·(τR·e^(−t/τR) − τA·e^(−t/τA)) / (τR − τA)
+    let iR = Math.round(tR * fs / 1000), t = tR, want = (tR * Math.exp(-t / tR) - tA * Math.exp(-t / tA)) / (tR - tA)
+    almost(gr(n / 2 + iR) / G, want, 2e-3, `+${over} dB: ${(100 * gr(n / 2 + iR) / G).toFixed(1)}% left after τR`)
+  }
+})
+
+test('compressor: no attack lag: the first sample over the threshold is already reduced', () => {
+  let x = new Float32Array(fs / 10).fill(10 ** (-60 / 20))
+  x.fill(10 ** (-4 / 20), 1000)
+  let y = compressor(x, { threshold: -24, ratio: 4, knee: 0, attack: 5, sampleRate: fs })
+  is(y[999], x[999], 'below threshold: untouched')
+  ok(y[1000] < x[1000], `first sample over: ${db(y[1000] / x[1000]).toFixed(4)} dB`)
+})
+
+test('compressor: a steady tone settles at the static curve for its peak level', () => {
+  let x = sine(1000, fs, 10 ** (-6 / 20))
+  let y = compressor(x, { threshold: -24, ratio: 3, knee: 0, attack: 5, release: 100, sampleRate: fs })
+  almost(db(peak(y.subarray(fs / 2)) / peak(x.subarray(fs / 2))), -12, 0.05, 'peak −6 dB, 18 over at 3:1: −12 dB')
+})
+
 // --- compressor: upward (four-quadrant taxonomy — Giannoulis, Massberg & Reiss 2012,
 // JAES 60(6); Izhaki, Mixing Audio — downward/upward compression, downward/upward
 // expansion. Upward is the "OTT up" half: lifts quiet passages toward the threshold.) ---
@@ -164,6 +207,19 @@ test('limiter — brickwall holds on isolated transient', () => {
   let out = limiter(d, { ceiling: -6, lookahead: 5, release: 50 })
   let ceilLin = Math.pow(10, -6 / 20)
   ok(peak(out) <= ceilLin * (1 + 1e-6), `peak ${peak(out).toFixed(4)} ≤ ${ceilLin.toFixed(4)}`)
+})
+
+test('limiter: gain ramps into a peak across the lookahead, no step', () => {
+  let n = fs / 2, x = new Float32Array(n)
+  for (let i = 0; i < n; i++) x[i] = (i >= fs / 4 && i < fs / 4 + 441 ? 1 : 0.1) * Math.sin(2 * Math.PI * 1000 * i / fs)
+  let la = 5, L = Math.round(la * fs / 1000)
+  let y = limiter(x, { ceiling: -6, lookahead: la, release: 50, sampleRate: fs })
+  let maxStep = 0
+  // the gain on the steady part before the burst, where it ramps down: output/input on samples over 0.05
+  for (let i = fs / 4 - L - 50; i < fs / 4; i++) if (Math.abs(x[i]) > 0.05 && Math.abs(x[i - 1]) > 0.05) maxStep = Math.max(maxStep, Math.abs(y[i] / x[i] - y[i - 1] / x[i - 1]))
+  let depth = 1 - 10 ** (-6 / 20)
+  ok(maxStep <= 1.5 * depth / L, 'largest gain change per sample ' + maxStep.toFixed(4) + ' ≤ ' + (1.5 * depth / L).toFixed(4) + ' (a ramp over ' + L + ' samples)')
+  ok(peak(y) <= 10 ** (-6 / 20) + 1e-6, 'ceiling holds: ' + db(peak(y)).toFixed(3) + ' dB')
 })
 
 test('limiter — streaming matches batch exactly', () => {
@@ -688,6 +744,26 @@ test('leveler — sections ride to target, peak-guarded', () => {
 	let lDb = toDb(rmsOf(d, quiet.length + sr, quiet.length + 2 * sr))
 	almost(qDb, -20, 2.5, 'quiet section ' + qDb.toFixed(1))
 	almost(lDb, -20, 2.5, 'loud section ' + lDb.toFixed(1))
+})
+
+test('leveler: pauses hold the voice\'s gain: the room between phrases keeps its place under it', () => {
+	let sr = 44100, seg = 3 * sr, d = new Float32Array(4 * seg), s = 7
+	const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647 - 0.5
+	for (let k = 0; k < 4; k++) for (let i = k * seg; i < (k + 1) * seg; i++)
+		d[i] = k % 2 ? 2 * 10 ** (-60 / 20) * Math.sqrt(3) * rnd() : Math.SQRT2 * 10 ** (-14 / 20) * Math.sin(2 * Math.PI * 220 * i / sr)
+	let x = Float32Array.from(d)
+	leveler(d, { fs: sr, target: -20 })
+	let voice = toDb(rmsOf(d, sr, 2 * sr) / rmsOf(x, sr, 2 * sr)), room = toDb(rmsOf(d, seg + sr, seg + 2 * sr) / rmsOf(x, seg + sr, seg + 2 * sr))
+	almost(voice, -6, 0.5, 'voice at −14 dB rides to −20: ' + voice.toFixed(2) + ' dB')
+	almost(room, voice, 1, 'the room moves with it: ' + room.toFixed(2) + ' dB (not up by maxGain)')
+})
+
+test('leveler: the peak guard holds after smoothing: nothing past −0.5 dBFS', () => {
+	let sr = 44100, d = new Float32Array(6 * sr)
+	for (let i = 0; i < d.length; i++) d[i] = Math.SQRT2 * 10 ** (-40 / 20) * Math.sin(2 * Math.PI * 220 * i / sr)
+	d[3 * sr + 100] = 0.5
+	leveler(d, { fs: sr, target: -20 })
+	ok(peak(d) <= 0.94 + 1e-6, 'peak ' + toDb(peak(d)).toFixed(2) + ' dBFS')
 })
 
 // --- audit 2026-07-10: ballistics must be rate-invariant (fs/sampleRate seam) ---

@@ -37,7 +37,7 @@ export interface CompressorOptions {
 export declare const compressor: {
   (ctx: Ctx): Process
   channels: "any"
-  tail: 0.3
+  tail: 0
   params: {
     /** -60..0 dB (default -20) */
     "threshold": { type: "number", default: -20 }

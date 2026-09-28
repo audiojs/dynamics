@@ -1,41 +1,33 @@
 // atom manifest — wraps the dynamics compressor kernel per @audio/compile CONTRACT.
-// attack/release seed the envelope at construction (flags: restart); the rest are live.
+// attack/release seed the gain smoother at construction (flags: restart); the rest are live.
 // Upward compression (below threshold) sums with downward in the dB domain — see
 // compressor.js. The params convention has no null, so upRatio defaults to 1: a
 // mathematical no-op (upwardGain ≡ 0 for any threshold/knee/level when ratio is 1),
 // which is the off-switch here in place of the kernel's `upThreshold: null`.
+// No tail: the output is the input times a gain, silent when the input is.
 
-import { envelope } from '@audio/dynamics-envelope'
-import { compressorGain, upwardGain } from './compressor.js'
+import { gainDb, smoother } from './compressor.js'
 import { db2lin, lin2db } from './util.js'
 
 export const compressor = (ctx) => {
-	const envs = []
-	for (let c = 0, N = ctx.maxChannels ?? 8; c < N; c++) envs.push(envelope({
-		sampleRate: ctx.sampleRate,
-		attack: ctx.params.attack[0],
-		release: ctx.params.release[0],
-	}))
+	const smooth = []
+	for (let c = 0, N = ctx.maxChannels ?? 8; c < N; c++) smooth.push(smoother(ctx.params.attack[0], ctx.params.release[0], ctx.sampleRate))
 	return (inputs, outputs, params) => {
 		const inp = inputs[0], out = outputs[0]
 		if (!inp || !inp.length) return
-		const threshold = params.threshold[0], ratio = params.ratio[0]
-		const knee = params.knee[0], makeup = params.makeup[0]
-		const upThreshold = params.upThreshold[0], upRatio = params.upRatio[0]
-		const upKnee = params.upKnee[0], upRange = params.upRange[0]
+		const curve = {
+			threshold: params.threshold[0], ratio: params.ratio[0], knee: params.knee[0],
+			upThreshold: params.upThreshold[0], upRatio: params.upRatio[0], upKnee: params.upKnee[0], upRange: params.upRange[0],
+		}
+		const makeup = params.makeup[0]
 		for (let c = 0; c < inp.length; c++) {
-			const x = inp[c], y = out[c], env = envs[c]
-			for (let i = 0; i < x.length; i++) {
-				const levelDb = lin2db(env(x[i]))
-				let gDb = compressorGain(levelDb, threshold, ratio, knee)
-				gDb += upwardGain(levelDb, upThreshold, upRatio, upKnee, upRange)
-				y[i] = x[i] * db2lin(gDb + makeup)
-			}
+			const x = inp[c], y = out[c], sm = smooth[c]
+			for (let i = 0; i < x.length; i++) y[i] = x[i] * db2lin(-sm(-gainDb(lin2db(x[i]), curve)) + makeup)
 		}
 	}
 }
 compressor.channels = 'any'
-compressor.tail = 0.3
+compressor.tail = 0
 compressor.params = {
 	threshold:   { type: 'number', min: -60, max: 0, default: -20, smoothing: 0.01, unit: 'dB' },
 	ratio:       { type: 'number', min: 1, max: 20, default: 4 },

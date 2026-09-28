@@ -10,7 +10,7 @@ npm install @audio/dynamics-limiter
 import limiter from '@audio/dynamics-limiter'
 ```
 
-Lookahead brickwall limiter. A sliding-window maximum over the lookahead span drives the envelope, so gain reduction always covers every sample in transit — instant attack `lookahead` ms before a peak emerges, exponential release after it passes.
+Lookahead brickwall limiter. The gain each sample needs, its sliding minimum over the lookahead span and that minimum's moving average: the gain ramps down across `lookahead` ms into a peak, never stepping, and still covers every sample in transit; exponential release after it passes.
 
 ```js
 import limiter from '@audio/dynamics-limiter'

@@ -10,7 +10,7 @@ npm install @audio/dynamics-leveler
 import leveler from '@audio/dynamics-leveler'
 ```
 
-Framewise RMS is measured, converted to a gain toward `target`, gaussian-smoothed across frame neighbors, then peak-guarded so no frame is pushed past −0.5 dBFS. Gain is linearly interpolated between frame centers and applied in place. **Batch only, non-causal by design** — the smoothing looks at frames on both sides of each point, so there is no streaming form.
+Framewise RMS is measured and converted to a gain toward `target`; frames `gate` dB under the speech are pauses and hold the speech gain, so the room between phrases stays where it was under the voice. Gains are gaussian-smoothed across frame neighbors, then peak-guarded so no sample is pushed past −0.5 dBFS. Gain is linearly interpolated between frame centers and applied in place. **Batch only, non-causal by design** — the smoothing looks at frames on both sides of each point, so there is no streaming form.
 
 ```js
 leveler(data)                                    // target -20 dB, mutates and returns data
@@ -24,6 +24,7 @@ leveler(data, { target: -18, frame: 0.3, maxGain: 9, smooth: 3 })
 | `frame` | `0.5` | s, analysis window |
 | `maxGain` | `12` | dB, symmetric gain clamp per frame |
 | `smooth` | `5` | frames, gaussian smoothing radius |
+| `gate` | `20` | dB: frames this far under the speech are pauses and hold the speech gain |
 
 **Use when:** dialogue/podcast loudness riding, evening out a take without pumping.<br>
 **Not for:** real-time/streaming use (no streaming form) — use [`compressor`](https://github.com/audiojs/dynamics#compressor) or [`compand`](https://github.com/audiojs/dynamics#compand) for causal leveling.

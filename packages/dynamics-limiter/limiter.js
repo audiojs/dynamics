@@ -1,10 +1,10 @@
 import { writer, concat, db2lin, timeCoef } from './util.js'
 
-// Lookahead brickwall limiter. A sliding-window maximum (monotonic deque) over
-// the lookahead span drives the envelope, so the gain at emission accounts for
-// every sample still in transit — the envelope can never release below a delayed
-// peak. Instant attack when a peak enters the window (lookahead ms before it
-// emerges), exponential release after it leaves.
+// Lookahead brickwall limiter. Each sample needs the gain r = min(1, ceiling/|x|); the sliding minimum of r
+// over the lookahead span (monotonic deque) is the gain every sample in transit needs, and its moving average
+// over the same span ramps into each peak across the lookahead instead of stepping at once: every value the
+// average spans covers the sample being emitted, so the ramp never lets it past the ceiling (the design of
+// the true-peak ceiling in audio's normalize). Exponential release after the peak passes.
 export default function limiter(data, opts) {
   if (!(data instanceof Float32Array)) return writer(limiterStream(data))
   let s = limiterStream(opts)
@@ -24,29 +24,32 @@ export function limiterStream(opts = {}) {
   let buf = new Float32Array(laSamp)  // delay line
   let bi = 0
   let pending = 0                     // samples buffered but not yet emitted
-  let env = 0
+  let env = 1
 
-  // Monotonic deque: max |x| over the window [n - laSamp, n] —
+  // Monotonic deque: min required gain over the window [n - laSamp, n]:
   // the emitted sample through the current one, laSamp + 1 samples.
   let win = laSamp + 1
-  let qv = new Float32Array(win)
+  let qv = new Float64Array(win)
   let qn = new Float64Array(win)      // absolute sample index per entry
   let qh = 0, qt = 0                  // head/tail counters, slots taken mod win
+  // its moving average over the same window
+  let avg = new Float64Array(win).fill(1), sum = win, ai = 0
   let n = 0
 
   // Advance one sample; returns the gain-scaled emitted sample, or undefined
   // while the delay line is still warming up.
   function step(x) {
     let ax = x < 0 ? -x : x
-    while (qt > qh && qv[(qt - 1) % win] <= ax) qt--
-    qv[qt % win] = ax
+    let r = ax > ceilLin ? ceilLin / ax : 1
+    while (qt > qh && qv[(qt - 1) % win] >= r) qt--
+    qv[qt % win] = r
     qn[qt % win] = n
     qt++
     if (qn[qh % win] < n - laSamp) qh++
     let m = qv[qh % win]
-    env = rCoef * env + (1 - rCoef) * m
-    if (m > env) env = m
-    let gain = env > ceilLin ? ceilLin / env : 1
+    sum += m - avg[ai]; avg[ai] = m; ai = (ai + 1) % win
+    let g = sum / win
+    env = g < env ? g : rCoef * env + (1 - rCoef) * g
     n++
     if (pending < laSamp) {
       buf[bi] = x
@@ -54,7 +57,7 @@ export function limiterStream(opts = {}) {
       pending++
       return
     }
-    let y = buf[bi] * gain
+    let y = buf[bi] * env
     buf[bi] = x
     bi = (bi + 1) % laSamp
     return y

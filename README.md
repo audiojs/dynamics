@@ -83,7 +83,7 @@ for (let x of samples) level.push(follow(x))
 
 ## compressor
 
-Feed-forward soft-knee downward compressor — Giannoulis-Massberg topology. Envelope → log domain → quadratic soft-knee gain curve → linear gain applied to input.
+Feed-forward soft-knee downward compressor, as Giannoulis, Massberg & Reiss recommend: level in dB → quadratic soft-knee gain curve → gain reduction smoothed in the log domain by the smooth decoupled peak detector → linear gain applied to input. `attack` and `release` are the time constants of the gain reduction itself (1 − 1/e), at any depth of compression; the first sample over the threshold is already reduced.
 
 Downward compression (above threshold, reduces gain) is one half of the canonical four-quadrant dynamics taxonomy — downward/upward compression, downward/upward expansion (Giannoulis, Massberg & Reiss 2012; Izhaki, *Mixing Audio*). Setting `upThreshold` engages the other compression half: **upward compression** lifts quiet passages *toward* the threshold instead of squashing loud ones — the "OTT up" half popularized by Xfer OTT. Both curves read the same envelope and sum in the dB domain, so a single compressor call can glue loud material down and lift quiet material up at once.
 
@@ -117,7 +117,7 @@ compressor(data, { threshold: -18, ratio: 4, upThreshold: -40, upRatio: 2, upRan
 
 ## limiter
 
-Lookahead brickwall limiter. A sliding-window maximum over the lookahead span drives the envelope, so gain reduction always covers every sample in transit — instant attack `lookahead` ms before a peak emerges, exponential release after it passes.
+Lookahead brickwall limiter. The gain each sample needs, its sliding minimum over the lookahead span and that minimum's moving average: the gain ramps down across `lookahead` ms into a peak, never stepping, and still covers every sample in transit; exponential release after it passes.
 
 ```js
 import { limiter } from '@audio/dynamics'

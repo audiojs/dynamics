@@ -1,4 +1,4 @@
-/** Feed-forward soft-knee compressor (Giannoulis-Massberg topology), with an optional upward-compression half. */
+/** Feed-forward soft-knee compressor, gain reduction smoothed in the log domain (Giannoulis, Massberg & Reiss 2012), with an optional upward-compression half. */
 export interface CompressorOptions {
   /** dB, downward-compression threshold, default -20 */
   threshold?: number
@@ -45,3 +45,12 @@ export function compressorGain(levelDb: number, threshold: number, ratio: number
 
 /** Soft-knee upward compression curve — the below-threshold complement of compressorGain. Returns gain lift in dB (≥ 0), clamped to rangeDb. */
 export function upwardGain(levelDb: number, threshold: number, ratio: number, kneeDb: number, rangeDb?: number): number
+
+/** Static gain, dB, at a level in dB: the downward curve plus the upward lift when `upThreshold` is set. */
+export function gainDb(levelDb: number, curve: { threshold: number, ratio: number, knee: number, upThreshold?: number | null, upRatio: number, upKnee: number, upRange: number }): number
+
+/** Level in dB per sample: the instantaneous peak, or the RMS of the last `win` samples. */
+export function detector(type?: 'peak' | 'rms', win?: number): (x: number) => number
+
+/** Smooth decoupled peak detector (Giannoulis et al. 2012, eq. 17) on gain reduction in dB. */
+export function smoother(attack: number, release: number, sampleRate: number): (reductionDb: number) => number

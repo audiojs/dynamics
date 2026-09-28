@@ -10,6 +10,8 @@ export interface LevelerOptions {
   maxGain?: number
   /** frames, gaussian smoothing radius, default 5 */
   smooth?: number
+  /** dB, frames this far under the speech level are pauses and hold the speech gain, default 20 */
+  gate?: number
 }
 
 /** Mutates `data` in place (applies gain) and returns it. No streaming form — smoothing looks at frames on both sides of each point. */

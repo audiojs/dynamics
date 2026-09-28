@@ -10,7 +10,7 @@ npm install @audio/dynamics-compressor
 import compressor from '@audio/dynamics-compressor'
 ```
 
-Feed-forward soft-knee downward compressor — Giannoulis-Massberg topology. Envelope → log domain → quadratic soft-knee gain curve → linear gain applied to input.
+Feed-forward soft-knee downward compressor, as Giannoulis, Massberg & Reiss recommend: level in dB → quadratic soft-knee gain curve → gain reduction smoothed in the log domain by the smooth decoupled peak detector → linear gain applied to input. `attack` and `release` are the time constants of the gain reduction itself (1 − 1/e), at any depth of compression; the first sample over the threshold is already reduced.
 
 Downward compression (above threshold, reduces gain) is one half of the canonical four-quadrant dynamics taxonomy — downward/upward compression, downward/upward expansion (Giannoulis, Massberg & Reiss 2012; Izhaki, *Mixing Audio*). Setting `upThreshold` engages the other compression half: **upward compression** lifts quiet passages *toward* the threshold instead of squashing loud ones — the "OTT up" half popularized by Xfer OTT. Both curves read the same envelope and sum in the dB domain, so a single compressor call can glue loud material down and lift quiet material up at once.
 

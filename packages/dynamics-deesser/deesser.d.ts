@@ -1,28 +1,30 @@
-/** De-esser — 'broadband' (bandpass-sidechained compressor, gain reduction applied broadband) or 'band' (dynamic peaking-EQ cut, only the sibilance band moves). */
+/** De-esser — the sibilance band's level over the voice body's (dB, any recording level) drives a cut held within `range`: broadband gain, or a peaking-EQ cut at `fc` ('band'). */
 export interface DeesserOptions {
-  /** 'broadband' (simple, transparent) or 'band' (program below the sibilance band stays untouched), default 'broadband' */
+  /** 'broadband' (the whole sound dips while an 's' lasts) or 'band' (a peaking EQ at `fc` cuts only the sibilance band), default 'broadband' */
   mode?: 'broadband' | 'band'
-  /** Hz, sibilance center, default 6500 */
+  /** Hz, sibilance center: the band watched (and, in band mode, cut); the voice body is below fc/2. Default 6500 */
   fc?: number
   /** @deprecated former name of `fc` */
   freq?: number
-  /** bandpass Q (broadband mode) / peaking-cut Q (band mode), default 2 (broadband) / 1.4 (band) */
+  /** width of the sibilance band, watched and (band mode) cut, default 2 (broadband) / 1.4 (band) */
   Q?: number
   /** @deprecated former name of `Q` */
   q?: number
-  /** dB, on sidechain level, default -20 */
+  /** dB of the sibilance band over the voice body at which the cut starts, default 0 (not a level: the same at any recording level) */
   threshold?: number
-  /** default 4 (broadband only — band mode's cut depth is derived from the ratio-shaped curve directly) */
+  /** default 4 */
   ratio?: number
-  /** dB, soft-knee width, broadband mode only, default 6 */
+  /** dB, the deepest cut (sign ignored), default -6 */
+  range?: number
+  /** dB, soft-knee width, default 6 */
   knee?: number
   /** ms, default 1 */
   attack?: number
-  /** ms, default 40 */
+  /** ms, default 15 */
   release?: number
   /** samples, EQ-gain recompute block, band mode only, default 64 */
   block?: number
-  /** sidechain envelope detector, broadband mode only (passed through to the underlying follower), default 'peak' */
+  /** @deprecated ignored: the detector is the sibilance band's RMS over the voice body's */
   detector?: 'peak' | 'rms'
   /** sample rate, Hz, default 44100 (no `fs` alias — this atom reads `sampleRate` only) */
   sampleRate?: number

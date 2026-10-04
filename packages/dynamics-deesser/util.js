@@ -17,3 +17,20 @@ export function concat(a, b) {
 export const db2lin = (db) => Math.pow(10, db / 20)
 
 export const lin2db = (lin) => 20 * Math.log10(Math.max(Math.abs(lin), 1e-10))
+
+// One-pole smoothing coefficient, α = e^(−1/(τ·fs)) (Giannoulis et al. 2012, eq. 7): τ in ms reaches 1 − 1/e.
+export function timeCoef(ms, sampleRate) {
+  if (ms <= 0) return 0
+  return Math.exp(-1 / (ms * 0.001 * sampleRate))
+}
+
+// Smooth decoupled peak detector, eq. (17), run on a gain reduction in dB, as the compressor's:
+// y₁ = max(x, αR·y₁ + (1 − αR)·x), y = αA·y + (1 − αA)·y₁.
+export function smoother(attack, release, sampleRate) {
+  let aA = timeCoef(attack, sampleRate), aR = timeCoef(release, sampleRate), y1 = 0, y = 0
+  return x => {
+    let r = aR * y1 + (1 - aR) * x
+    y1 = x > r ? x : r
+    return y = aA * y + (1 - aA) * y1
+  }
+}

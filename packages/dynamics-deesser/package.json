@@ -1,7 +1,7 @@
 {
   "name": "@audio/dynamics-deesser",
-  "version": "0.2.7",
-  "description": "De-esser: bandpass sidechain (sibilance band) drives a compressor whose gain",
+  "version": "0.3.0",
+  "description": "De-esser: the sibilance band's level over the voice body's drives a cut held within a range, the same at any recording level",
   "type": "module",
   "sideEffects": false,
   "main": "deesser.js",
@@ -21,7 +21,6 @@
     "deesser.d.ts"
   ],
   "dependencies": {
-    "@audio/dynamics-envelope": "^0.1.0",
     "@audio/dynamics-compressor": "^0.2.0",
     "@audio/biquad": "^1.1.0"
   },

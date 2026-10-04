@@ -20,15 +20,17 @@ export interface DeesserOptions {
   "Q"?: Auto
   /** @deprecated former name of "Q" */
   "q"?: Auto
-  /** -60..0 dB (default -20) */
+  /** -12..24 dB (default 0) */
   "threshold"?: Auto
   /** 1..20 (default 4) */
   "ratio"?: Auto
+  /** -24..0 dB (default -6) */
+  "range"?: Auto
   /** 0..24 dB (default 6) */
   "knee"?: Auto
   /** 0.1..100 ms (default 1) */
   "attack"?: Auto
-  /** 1..1000 ms (default 40) */
+  /** 1..1000 ms (default 15) */
   "release"?: Auto
   at?: number | string
   duration?: number | string
@@ -44,15 +46,17 @@ export declare const deesser: {
     "fc": { type: "number", default: 6500, alias: "freq" }
     /** 0.3..10 (default 2) [restart] */
     "Q": { type: "number", default: 2, alias: "q" }
-    /** -60..0 dB (default -20) [restart] */
-    "threshold": { type: "number", default: -20 }
+    /** -12..24 dB (default 0) [restart] */
+    "threshold": { type: "number", default: 0 }
     /** 1..20 (default 4) [restart] */
     "ratio": { type: "number", default: 4 }
+    /** -24..0 dB (default -6) [restart] */
+    "range": { type: "number", default: -6 }
     /** 0..24 dB (default 6) [restart] */
     "knee": { type: "number", default: 6 }
     /** 0.1..100 ms (default 1) [restart] */
     "attack": { type: "number", default: 1 }
-    /** 1..1000 ms (default 40) [restart] */
-    "release": { type: "number", default: 40 }
+    /** 1..1000 ms (default 15) [restart] */
+    "release": { type: "number", default: 15 }
   }
 }

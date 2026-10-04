@@ -454,34 +454,94 @@ test('unlimit — streaming matches batch; deterministic; no NaN', () => {
 
 // --- deesser ---
 
-test('deesser — attenuates HF band, passes LF', () => {
-  let lowMix = sine(200, fs >> 1, 0.5)
-  let outLow = deesser(lowMix, { fc: 6500, threshold: -30, ratio: 8 })
-  almost(rms(outLow), rms(lowMix), rms(lowMix) * 0.1, 'LF passes')
+// a vowel: 150 Hz harmonics to 3 kHz at 1/k; an 's': 40 partials over 4–9 kHz at random phases, a fricative's noise
+// band; each faded in and out over 10 ms, as a sound starts
+function partials(n, list, amp, seed = 1) {
+  let d = new Float32Array(n), r = seed, m = fs / 100
+  for (let [f, a] of list) {
+    r = (Math.imul(r, 1664525) + 1013904223) >>> 0
+    let ph = 2 * Math.PI * r / 4294967296
+    for (let i = 0; i < n; i++) d[i] += a * Math.sin(2 * Math.PI * f * i / fs + ph)
+  }
+  let k = amp / peak(d)
+  return d.map((v, i) => v * k * Math.min(1, i / m, (n - 1 - i) / m))
+}
+const vowel = (n, amp = 0.5) => partials(n, Array.from({ length: 20 }, (_, k) => [150 * (k + 1), 1 / (k + 1)]), amp)
+const esses = (n, amp = 0.5, seed = 7) => partials(n, Array.from({ length: 40 }, (_, k) => [4000 + 5000 * k / 39, 1]), amp, seed)
+const join = (...a) => { let o = new Float32Array(a.reduce((s, x) => s + x.length, 0)), p = 0; for (let x of a) o.set(x, p), p += x.length; return o }
+const gain = (x, dB) => x.map(v => v * 10 ** (dB / 20))
 
-  let sib = sine(6500, fs >> 1, 0.5)
-  let outSib = deesser(sib, { fc: 6500, threshold: -30, ratio: 8, attack: 1, release: 5 })
-  ok(rms(outSib) < rms(sib) * 0.8, 'sibilance reduced')
+test('deesser — an s is cut by at most range, and by the same dB at any level', () => {
+  // vowel, s, vowel; the cut on the s's steady half at −40, −20 and 0 dB. 0.2.x cut it 0, 0, 5.2 dB (a threshold on
+  // the band's own level), and as deep as the excess asked, with no bound
+  let n = fs / 4, x = join(vowel(n), esses(n), vowel(n)), a = n + n / 2, b = 2 * n
+  for (let mode of ['broadband', 'band']) {
+    let cuts = [-40, -20, 0].map(L => { let xg = gain(x, L), y = deesser(xg, { mode, sampleRate: fs }); return db(rms(y.subarray(a, b)) / rms(xg.subarray(a, b))) })
+    ok(cuts.every(c => c <= -3 && c >= -6.1), `${mode}: the s cut 3–6 dB (${cuts.map(c => c.toFixed(2))})`)
+    ok(Math.max(...cuts) - Math.min(...cuts) < 0.1, `${mode}: the same cut at −40, −20, 0 dB`)
+    let deep = deesser(gain(x, 0), { mode, sampleRate: fs, range: -3 }).subarray(a, b)
+    ok(db(rms(deep) / rms(gain(x, 0).subarray(a, b))) >= -3.05, `${mode}: range −3 holds it to 3 dB`)
+    let after = deesser(x, { mode, sampleRate: fs }).subarray(2 * n + fs / 20)
+    ok(Math.abs(db(rms(after) / rms(x.subarray(2 * n + fs / 20)))) < 0.05, `${mode}: the vowel after it is back within 50 ms`)
+  }
+})
+
+test('deesser — a vowel, and a bright sound under a full body (a cymbal in a mix), pass untouched', () => {
+  let v = vowel(fs / 2), body = vowel(fs / 2, 0.8), hf = esses(fs / 2, 1, 3)
+  let mix = body.map((s, i) => s + hf[i] * rms(body) / rms(hf) * 10 ** (-12 / 20))   // the bright band 12 dB under
+  for (let mode of ['broadband', 'band']) for (let L of [-40, 0]) {
+    let xv = gain(v, L), yv = deesser(xv, { mode, sampleRate: fs }), xm = gain(mix, L), ym = deesser(xm, { mode, sampleRate: fs })
+    ok(yv.every((s, i) => s === xv[i]), `${mode} at ${L} dB: a vowel is passed sample for sample`)
+    ok(ym.every((s, i) => s === xm[i]), `${mode} at ${L} dB: the bright mix is passed sample for sample`)
+  }
+})
+
+test('deesser — hiss in a pause is not taken for an s', () => {
+  // white noise 50 dB under the voice, after it: sibilance-shaped, but measured against the voice's running level
+  let n = fs / 2, r = 9, hiss = Float32Array.from({ length: n }, () => (r = (Math.imul(r, 1664525) + 1013904223) >>> 0, (r / 2147483648 - 1) * 0.5 * 10 ** (-50 / 20)))
+  let x = join(vowel(n), hiss), a = n + fs / 20
+  for (let mode of ['broadband', 'band']) {
+    let y = deesser(x, { mode, sampleRate: fs })
+    ok(Math.abs(db(rms(y.subarray(a)) / rms(x.subarray(a)))) < 0.1, `${mode}: the hiss keeps its level`)
+  }
 })
 
 test('deesser — former option names freq/q still work', () => {
   let x = sine(6000, fs >> 2, 0.5)
   for (let mode of ['broadband', 'band']) {
-    let a = deesser(Float32Array.from(x), { mode, fc: 5500, Q: 3, threshold: -30 })
-    let b = deesser(Float32Array.from(x), { mode, freq: 5500, q: 3, threshold: -30 })
+    let a = deesser(Float32Array.from(x), { mode, fc: 5500, Q: 3 })
+    let b = deesser(Float32Array.from(x), { mode, freq: 5500, q: 3 })
     ok(a.every((v, i) => v === b[i]), `${mode}: { freq, q } ≡ { fc, Q }`)
   }
 })
 
 test('deesser — band mode cuts only the sibilance band (dynamic peaking EQ)', () => {
   let n = fs >> 1, x = new Float32Array(n)
-  for (let i = 0; i < n; i++) x[i] = 0.3 * Math.sin(2 * Math.PI * 220 * i / fs) + 0.3 * Math.sin(2 * Math.PI * 7000 * i / fs)
-  let opts = { fc: 7000, threshold: -30, ratio: 8, attack: 1, release: 20 }
-  let band = deesser(x, { ...opts, mode: 'band' })
+  for (let i = 0; i < n; i++) x[i] = 0.3 * Math.sin(2 * Math.PI * 220 * i / fs) + 0.6 * Math.sin(2 * Math.PI * 7000 * i / fs)
+  let band = deesser(x, { fc: 7000, mode: 'band' })
   ok(energyAt(band, 7000) < energyAt(x, 7000) * 0.7, 'sibilance band cut')
-  ok(energyAt(band, 220) > energyAt(x, 220) * 0.9, 'program below the band untouched')
-  let broad = deesser(x, { ...opts, mode: 'broadband' })
+  ok(energyAt(band, 220) > energyAt(x, 220) * 0.99, 'program below the band untouched')
+  let broad = deesser(x, { fc: 7000, mode: 'broadband' })
   ok(energyAt(band, 220) > energyAt(broad, 220), 'band mode preserves LF better than broadband at equal drive')
+})
+
+test('deesser — edge cases: empty, one sample, under a block, silence, any chunking, finite', () => {
+  let x = join(vowel(fs / 4), esses(fs / 4), vowel(fs / 4))
+  for (let mode of ['broadband', 'band']) {
+    is(deesser(new Float32Array(0), { mode }).length, 0, `${mode}: empty`)
+    let one = deesser(new Float32Array([0.5]), { mode })
+    ok(one.length === 1 && isFinite(one[0]), `${mode}: one sample`)
+    let short = deesser(Float32Array.from({ length: 10 }, (_, i) => Math.sin(i)), { mode })
+    ok(short.length === 10 && short.every(isFinite), `${mode}: under a block`)
+    ok(deesser(new Float32Array(fs / 10), { mode }).every(v => v === 0), `${mode}: silence stays silence`)
+    let batch = deesser(x, { mode, sampleRate: fs }), write = deesser({ mode, sampleRate: fs }), parts = [], p = 0
+    for (let k of [1, 63, 333, 4096, 64]) { parts.push(write(x.subarray(p, p + k))); p += k }
+    parts.push(write(x.subarray(p)), write())
+    ok(join(...parts).every((v, i) => v === batch[i]), `${mode}: chunks of 1, 63, 333, … give the batch's samples`)
+    let r = 5, wild = Float32Array.from({ length: fs / 10 }, (_, i) => (r = (Math.imul(r, 1664525) + 1013904223) >>> 0, i % 1000 < 500 ? (r / 2147483648 - 1) : 1e-30 * (r & 1)))
+    ok(deesser(wild, { mode, sampleRate: fs }).every(isFinite), `${mode}: full-scale noise and denormals stay finite`)
+    ok(deesser(x, { mode, sampleRate: 8000 }).every(isFinite), `${mode}: fc above Nyquist at 8 kHz stays finite`)
+  }
 })
 
 

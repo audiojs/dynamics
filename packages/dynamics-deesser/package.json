@@ -1,7 +1,7 @@
 {
   "name": "@audio/dynamics-deesser",
-  "version": "0.3.0",
-  "description": "De-esser: the sibilance band's level over the voice body's drives a cut held within a range, the same at any recording level",
+  "version": "0.4.0",
+  "description": "De-esser: the sibilance band's level over the voice body's drives a cut held within a range, read 5 ms ahead, on the band over 3.5 kHz (linear phase), a band, or broadband; the same at any recording level",
   "type": "module",
   "sideEffects": false,
   "main": "deesser.js",

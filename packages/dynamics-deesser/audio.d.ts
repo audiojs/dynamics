@@ -10,13 +10,15 @@ type Process = (inputs: Float32Array[][], outputs: Float32Array[][], params: Liv
 
 /** Chainable-host options for 'deesser' */
 export interface DeesserOptions {
-  /** default "broadband" */
-  "mode"?: "broadband" | "band"
+  /** default "split" */
+  "mode"?: "split" | "band" | "broadband"
+  /** 1000..16000 Hz (default 3500) */
+  "split"?: Auto
   /** 2000..16000 Hz (default 6500) */
   "fc"?: Auto
   /** @deprecated former name of "fc" */
   "freq"?: Auto
-  /** 0.3..10 (default 2) */
+  /** 0.3..10 (default 1.4) */
   "Q"?: Auto
   /** @deprecated former name of "Q" */
   "q"?: Auto
@@ -24,7 +26,7 @@ export interface DeesserOptions {
   "threshold"?: Auto
   /** 1..20 (default 4) */
   "ratio"?: Auto
-  /** -24..0 dB (default -6) */
+  /** -24..0 dB (default -8) */
   "range"?: Auto
   /** 0..24 dB (default 6) */
   "knee"?: Auto
@@ -32,6 +34,8 @@ export interface DeesserOptions {
   "attack"?: Auto
   /** 1..1000 ms (default 15) */
   "release"?: Auto
+  /** 0..20 ms (default 5) */
+  "lookahead"?: Auto
   at?: number | string
   duration?: number | string
 }
@@ -39,24 +43,29 @@ export interface DeesserOptions {
 export declare const deesser: {
   (ctx: Ctx): Process
   channels: "any"
+  latency: (ctx: { sampleRate: number, params: Live }) => number
   params: {
-    /** default "broadband" [restart] */
-    "mode": { type: "enum", values: ["broadband","band"], default: "broadband" }
+    /** default "split" [restart] */
+    "mode": { type: "enum", values: ["split","band","broadband"], default: "split" }
+    /** 1000..16000 Hz (default 3500) [restart] */
+    "split": { type: "number", default: 3500 }
     /** 2000..16000 Hz (default 6500) [restart] */
     "fc": { type: "number", default: 6500, alias: "freq" }
-    /** 0.3..10 (default 2) [restart] */
-    "Q": { type: "number", default: 2, alias: "q" }
+    /** 0.3..10 (default 1.4) [restart] */
+    "Q": { type: "number", default: 1.4, alias: "q" }
     /** -12..24 dB (default 0) [restart] */
     "threshold": { type: "number", default: 0 }
     /** 1..20 (default 4) [restart] */
     "ratio": { type: "number", default: 4 }
-    /** -24..0 dB (default -6) [restart] */
-    "range": { type: "number", default: -6 }
+    /** -24..0 dB (default -8) [restart] */
+    "range": { type: "number", default: -8 }
     /** 0..24 dB (default 6) [restart] */
     "knee": { type: "number", default: 6 }
     /** 0.1..100 ms (default 1) [restart] */
     "attack": { type: "number", default: 1 }
     /** 1..1000 ms (default 15) [restart] */
     "release": { type: "number", default: 15 }
+    /** 0..20 ms (default 5) [restart] */
+    "lookahead": { type: "number", default: 5 }
   }
 }

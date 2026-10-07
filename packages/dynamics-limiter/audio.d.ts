@@ -16,6 +16,8 @@ export interface LimiterOptions {
   "lookahead"?: Auto
   /** 1..1000 ms (default 50) */
   "release"?: Auto
+  /** default false */
+  "truePeak"?: boolean
   at?: number | string
   duration?: number | string
 }
@@ -31,5 +33,7 @@ export declare const limiter: {
     "lookahead": { type: "number", default: 5 }
     /** 1..1000 ms (default 50) [restart] */
     "release": { type: "number", default: 50 }
+    /** default false [restart] */
+    "truePeak": { type: "bool", default: false }
   }
 }

@@ -77,6 +77,7 @@ for (let x of samples) level.push(follow(x))
 | `sampleRate` | `44100` | — |
 | `attack` | `5` | ms |
 | `release` | `50` | ms |
+| `truePeak` | `false` | hold the reconstructed waveform under the ceiling, not only its samples (ITU-R BS.1770 Annex 2): each interval read at 8 points through a 96-tap Kaiser sinc; 96 samples more delay |
 | `detector` | `'peak'` | `'peak'` or `'rms'` |
 | `rmsWindow` | `256` | samples, for RMS detector |
 
@@ -124,6 +125,7 @@ import { limiter } from '@audio/dynamics'
 
 limiter(data, { ceiling: -0.3 })
 limiter(data, { ceiling: -1, lookahead: 10, release: 100 })
+limiter(data, { ceiling: -1, truePeak: true })   // dBTP: the waveform between samples too
 ```
 
 | Param | Default | |
@@ -131,8 +133,9 @@ limiter(data, { ceiling: -1, lookahead: 10, release: 100 })
 | `ceiling` | `-0.3` | dB (brickwall) |
 | `lookahead` | `5` | ms (introduces delay) |
 | `release` | `50` | ms |
+| `truePeak` | `false` | hold the reconstructed waveform under the ceiling, not only its samples (ITU-R BS.1770 Annex 2): each interval read at 8 points through a 96-tap Kaiser sinc; 96 samples more delay |
 
-**Use when:** sample-peak control at the master bus. This limiter does not measure or constrain reconstructed inter-sample peaks.<br>
+**Use when:** peak control at the master bus; `truePeak` for a delivery spec in dBTP (streaming's -1 dBTP, EBU R128's -1), where a DAC or a lossy decoder rebuilds peaks up to 3 dB over the samples. Full-band noise limited 20 dB stays within 0.005 dB of the ceiling, band-limited, with 16 samples of lookahead or more.<br>
 **Not for:** musical dynamics shaping — use [compressor](#compressor). Low-latency paths — use [softclip](#softclip).
 
 
@@ -185,6 +188,7 @@ expander(data, { mode: 'upward', threshold: -20, ratio: 1.5, range: 20 })
 | `range` | `-40` (downward) / `20` (upward) | dB, max reduction (downward, negative) or max lift (upward, positive) |
 | `attack` | `5` | ms |
 | `release` | `50` | ms |
+| `truePeak` | `false` | hold the reconstructed waveform under the ceiling, not only its samples (ITU-R BS.1770 Annex 2): each interval read at 8 points through a 96-tap Kaiser sinc; 96 samples more delay |
 
 **Use when:** gentle noise-floor suppression without the abruptness of a gate (`downward`); restoring dynamics to over-compressed or over-limited material (`upward`).<br>
 **Not for:** hard removal of sound between phrases — use [gate](#gate).

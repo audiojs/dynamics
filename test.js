@@ -1,6 +1,7 @@
 import test, { almost, ok, is } from 'tst'
 import { compressor, limiter, gate, expander, unlimit, deesser, ducker, softclip, compand, envelope, transientShaper, multiband, opto, fet, vca, varimu, leveler } from './index.js'
 import { latency } from '@audio/dynamics-deesser'
+import { latency as limiterLatency } from '@audio/dynamics-limiter'
 
 const fs = 44100
 
@@ -244,6 +245,61 @@ test('limiter — streaming preserves length', () => {
   let b = write(data.subarray(2048))
   let tail = write()
   is(a.length + b.length + tail.length, data.length)
+})
+
+/** Band-limited true peak, dBTP: the waveform read 32 points a sample through a Kaiser-windowed sinc (β 14, 64 samples
+ *  each side), near every sample within 3 dB of the largest: a finer reader than the limiter's (audio's test/pro.js). */
+function bandPeak(x) {
+  let i0 = z => { let s = 1, t = 1; for (let k = 1; k < 60; k++) s += t *= (z / 2 / k) ** 2; return s }, I = i0(14)
+  let sinc = x => x === 0 ? 1 : Math.sin(Math.PI * x) / (Math.PI * x)
+  let K = Array.from({ length: 32 }, (_, p) => Float64Array.from({ length: 128 }, (_, j) => { let d = 63 - j + p / 32; return Math.abs(d) >= 64 ? 0 : sinc(d) * i0(14 * Math.sqrt(1 - (d / 64) ** 2)) / I }))
+  let pk = 0, top = peak(x)
+  for (let i = 0; i < x.length; i++) {
+    pk = Math.max(pk, Math.abs(x[i]))
+    if (Math.max(Math.abs(x[i]), Math.abs(x[i + 1] ?? 0)) < top * 0.708) continue
+    for (let p = 1; p < 32; p++) { let h = K[p], y = 0; for (let j = 0; j < 128; j++) { let k = i - 63 + j; if (k >= 0 && k < x.length) y += h[j] * x[k] } pk = Math.max(pk, Math.abs(y)) }
+  }
+  return db(pk)
+}
+
+test('limiter truePeak: a sine at fs/4, 45° on, whose samples sit 3 dB under its peak', () => {
+  // ITU-R BS.1770-4 Annex 2's case for reading between samples: the samples of sin(πn/2 + π/4) are ±0.707,
+  // the waveform reaches 1. Sample-peak limiting at -1 dB lets it through at 0 dBTP; true-peak holds -1 dBTP.
+  // Once the gain settles, consecutive samples are the sine in quadrature: its amplitude is their hypotenuse.
+  let x = Float32Array.from({ length: fs / 2 }, (_, n) => Math.sin(Math.PI * n / 2 + Math.PI / 4))
+  let amp = y => db(Math.hypot(y[fs / 4], y[fs / 4 + 1]))
+  almost(amp(limiter(x, { ceiling: -1 })), 0, 1e-6, 'sample peak: 0 dBTP')
+  let tp = amp(limiter(x, { ceiling: -1, truePeak: true }))
+  ok(tp <= -1 + 1e-4 && tp > -1.05, `true peak: ${tp.toFixed(4)} dBTP`)
+})
+
+test('limiter truePeak: full-band noise and a burst limited 20 dB, the band-limited peak at the ceiling', () => {
+  let seed = 7, rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+  for (let sr of [8000, 44100, 48000]) {
+    let x = Float32Array.from({ length: sr }, (_, i) => (rnd() * 2 - 1) * (i > sr / 2 && i < sr * 0.6 ? 10 : 1))
+    let tp = bandPeak(limiter(x, { ceiling: -1, truePeak: true, sampleRate: sr }))
+    ok(tp <= -1 + 0.006, `${sr} Hz: ${tp.toFixed(4)} dBTP`)
+  }
+})
+
+test('limiter truePeak: latency, alignment, streaming', () => {
+  let sr = 48000
+  is(limiterLatency({ lookahead: 5, sampleRate: sr, truePeak: true }), 240 + 96, '48 + lookahead + 48 samples')
+  let x = new Float32Array(4096); x[1000] = 0.1
+  let y = limiter(x, { sampleRate: sr, truePeak: true })
+  is(y.length, x.length, 'as long as the input')
+  is(y.indexOf(Math.max(...y)), 1000, 'aligned with it')
+  let data = sine(500, 4096, 0.9), batch = limiter(data, { ceiling: -6, truePeak: true })
+  let write = limiter({ ceiling: -6, truePeak: true }), parts = [write(data.subarray(0, 777)), write(data.subarray(777)), write()]
+  let stream = new Float32Array(batch.length), o = 0
+  for (let p of parts) { stream.set(p, o); o += p.length }
+  is(stream, batch, 'streaming matches batch')
+  // shorter than its delay (336 samples), one sample, none: as long as it went in, the peak held
+  for (let n of [100, 1, 0]) {
+    let x = new Float32Array(n).fill(0.99), y = limiter(x, { ceiling: -6, truePeak: true, sampleRate: sr })
+    is(y.length, n, `${n} samples in, ${n} out`)
+    ok(y.every(v => v <= 10 ** (-6 / 20) + 1e-6), `${n}: under the ceiling`)
+  }
 })
 
 

@@ -8,12 +8,17 @@ export interface LimiterOptions {
   release?: number
   /** sample rate, Hz, default 44100 (no `fs` alias — this atom reads `sampleRate` only) */
   sampleRate?: number
+  /** hold the reconstructed waveform under the ceiling (dBTP, ITU-R BS.1770 Annex 2), default false; 96 samples more delay */
+  truePeak?: boolean
 }
 
 /** Process a whole buffer. Returns a new Float32Array (length may differ slightly around lookahead warm-up/flush). */
 export default function limiter(data: Float32Array, options?: LimiterOptions): Float32Array
 /** Streaming form: returns a writer — call with a chunk to process it, call with no argument to flush. */
 export default function limiter(options?: LimiterOptions): (chunk?: Float32Array) => Float32Array
+
+/** Samples the output trails the input by: the lookahead, and 96 with `truePeak`. */
+export function latency(options?: LimiterOptions): number
 
 /** { write, flush } streaming primitive underlying the default export's streaming form. */
 export function limiterStream(options?: LimiterOptions): { write(chunk: Float32Array): Float32Array, flush(): Float32Array }

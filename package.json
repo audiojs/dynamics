@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "type": "module",
   "types": "index.d.ts",
   "description": "Dynamics processing — umbrella for @audio/dynamics-* atoms (compressor, limiter, gate, expander, de-esser, ducker, softclip, compand, transient shaper)",

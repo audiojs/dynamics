@@ -54,3 +54,10 @@ export function detector(type?: 'peak' | 'rms', win?: number): (x: number) => nu
 
 /** Smooth decoupled peak detector (Giannoulis et al. 2012, eq. 17) on gain reduction in dB. */
 export function smoother(attack: number, release: number, sampleRate: number): (reductionDb: number) => number
+
+/** One channel's running state for `compress`: the smoother's coefficients and poles, the RMS window when `type` is 'rms'. */
+export interface CompressorState { aA: number, aR: number, y1: number, y: number, rms: boolean, n: number, buf: Float64Array, sum: number, i: number }
+export function compressorState(attack: number, release: number, sampleRate: number, type?: 'peak' | 'rms', win?: number): CompressorState
+
+/** Compress block `x` into `out` (returned), carrying `state` across blocks: detector, gain curve and smoother fused. */
+export function compress(x: Float32Array, out: Float32Array, state: CompressorState, curve: { threshold: number, ratio: number, knee: number, upThreshold?: number | null, upRatio: number, upKnee: number, upRange: number }, depth?: number, makeup?: number): Float32Array

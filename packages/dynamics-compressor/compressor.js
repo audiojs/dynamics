@@ -27,20 +27,59 @@ export function compressorStream(opts = {}) {
     threshold: opts.threshold ?? -20, ratio: opts.ratio ?? 4, knee: opts.knee ?? 6,
     upThreshold: opts.upThreshold ?? null, upRatio: opts.upRatio ?? 2, upKnee: opts.upKnee ?? 6, upRange: opts.upRange ?? 12,
   }
-  let level = detector(opts.detector, opts.rmsWindow)
-  let smooth = smoother(opts.attack ?? 5, opts.release ?? 100, sr)
+  let st = compressorState(opts.attack ?? 5, opts.release ?? 100, sr, opts.detector, opts.rmsWindow)
 
   return {
-    write(chunk) {
-      let out = new Float32Array(chunk.length)
-      for (let i = 0; i < chunk.length; i++) {
-        let x = chunk[i]
-        out[i] = x * db2lin(-smooth(-gainDb(level(x), curve)) * depth + makeupDb)
-      }
-      return out
-    },
+    write(chunk) { return compress(chunk, new Float32Array(chunk.length), st, curve, depth, makeupDb) },
     flush() { return new Float32Array(0) }
   }
+}
+
+/** One channel's running state: the smoother's coefficients and poles, eq. (17), and the RMS window. */
+export function compressorState(attack, release, sampleRate, type = 'peak', win = 256) {
+  let rms = type === 'rms', n = rms ? Math.max(1, win) : 0
+  return { aA: timeCoef(attack, sampleRate), aR: timeCoef(release, sampleRate), y1: 0, y: 0, rms, n, buf: new Float64Array(n), sum: 0, i: 0 }
+}
+
+/** Compress block `x` into `out` and return it: `detector`, `gainDb` and `smoother` as one loop over locals,
+ *  the state carried in `s` from block to block. Gain 10^((−y·depth + makeup)/20). */
+export function compress(x, out, s, c, depth = 1, makeup = 0) {
+  let { aA, aR, rms, n, buf } = s, bA = 1 - aA, bR = 1 - aR, y1 = s.y1, y = s.y, sum = s.sum, j = s.i
+  let T = c.threshold, R = c.ratio, K = c.knee, uT = c.upThreshold, uR = c.upRatio, uK = c.upKnee, uG = c.upRange
+  let up = uT != null
+  // Level: |x| in dB, or the window's mean square in dB (10·log10), floored at −200 dB
+  let floor = rms ? 1e-20 : 1e-10, k = (rms ? 10 : 20) / Math.LN10
+  // Under T − K/2 the downward curve is exactly 0, over uT + uK/2 the upward one exactly its resting value (and
+  // everywhere when upRatio is 1): between, the gain is known without the level, so the log is taken only off
+  // this band. Its edges are compared in the linear level, set 1e-9 inside (~1e-8 dB), far over the log's
+  // rounding, so a level in the band is one the dB comparison puts there too. Absurd thresholds (~1e3 dB, where
+  // that rounding nears the margin) or NaN leave the band empty: every sample then takes the log.
+  let hi = Math.abs(T) + Math.abs(K) < 1e3 ? Math.exp((T - K / 2) / k) * (1 - 1e-9) : -1
+  if (!(hi > floor)) hi = -1
+  let lo = !up ? -1 : !(Math.abs(uT) + Math.abs(uK) < 1e3) ? Infinity : uR === 1 ? -1 : Math.exp((uT + uK / 2) / k) * (1 + 1e-9)
+  let g0 = hi > lo ? gainDb(k * Math.log(hi), c) : 0
+
+  for (let i = 0; i < x.length; i++) {
+    let v = x[i], l
+    if (rms) {
+      let sq = v * v
+      sum += sq - buf[j]; buf[j] = sq; j = (j + 1) % n
+      l = sum / n
+    } else l = Math.abs(v)
+    let g = g0
+    if (!(l > lo && l < hi)) {
+      let db = k * Math.log(Math.max(l, floor))
+      g = compressorGain(db, T, R, K)
+      if (up) g += upwardGain(db, uT, uR, uK, uG)
+    }
+    // smoother(), eq. (17), on the reduction −g, inline
+    let r = aR * y1 + bR * -g
+    y1 = -g > r ? -g : r
+    y = aA * y + bA * y1
+    out[i] = v * db2lin(-y * depth + makeup)
+  }
+  s.y1 = y1; s.y = y; s.sum = sum; s.i = j
+  return out
 }
 
 /** Static gain, dB, at level `db`: the downward curve, plus the upward lift when `upThreshold` is set. */
@@ -56,7 +95,7 @@ export function detector(type = 'peak', win = 256) {
   return x => {
     let sq = x * x
     sum += sq - buf[i]; buf[i] = sq; i = (i + 1) % n
-    return 10 * Math.log10(Math.max(sum / n, 1e-20))
+    return 10 / Math.LN10 * Math.log(Math.max(sum / n, 1e-20))
   }
 }
 

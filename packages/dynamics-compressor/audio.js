@@ -6,12 +6,11 @@
 // which is the off-switch here in place of the kernel's `upThreshold: null`.
 // No tail: the output is the input times a gain, silent when the input is.
 
-import { gainDb, smoother } from './compressor.js'
-import { db2lin, lin2db } from './util.js'
+import { compress, compressorState } from './compressor.js'
 
 export const compressor = (ctx) => {
-	const smooth = []
-	for (let c = 0, N = ctx.maxChannels ?? 8; c < N; c++) smooth.push(smoother(ctx.params.attack[0], ctx.params.release[0], ctx.sampleRate))
+	const st = []
+	for (let c = 0, N = ctx.maxChannels ?? 8; c < N; c++) st.push(compressorState(ctx.params.attack[0], ctx.params.release[0], ctx.sampleRate))
 	return (inputs, outputs, params) => {
 		const inp = inputs[0], out = outputs[0]
 		if (!inp || !inp.length) return
@@ -19,11 +18,7 @@ export const compressor = (ctx) => {
 			threshold: params.threshold[0], ratio: params.ratio[0], knee: params.knee[0],
 			upThreshold: params.upThreshold[0], upRatio: params.upRatio[0], upKnee: params.upKnee[0], upRange: params.upRange[0],
 		}
-		const makeup = params.makeup[0]
-		for (let c = 0; c < inp.length; c++) {
-			const x = inp[c], y = out[c], sm = smooth[c]
-			for (let i = 0; i < x.length; i++) y[i] = x[i] * db2lin(-sm(-gainDb(lin2db(x[i]), curve)) + makeup)
-		}
+		for (let c = 0; c < inp.length; c++) compress(inp[c], out[c], st[c], curve, 1, params.makeup[0])
 	}
 }
 compressor.channels = 'any'

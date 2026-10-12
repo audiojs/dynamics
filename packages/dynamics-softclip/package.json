@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-softclip",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Static waveshaping — no envelope, no time state. Deterministic per-sample",
   "type": "module",
   "sideEffects": false,

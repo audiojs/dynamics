@@ -8,6 +8,7 @@ import crossover from '@audio/eq-crossover'
 import { split3 } from '@audio/dynamics-multiband'
 import { multiband as multibandAtom } from '@audio/dynamics-multiband/audio'
 import { softclip as softclipAtom } from '@audio/dynamics-softclip/audio'
+import { oversampler } from '@audio/dynamics-softclip'
 import { compand as compandAtom } from '@audio/dynamics-compand/audio'
 import { compressor as compressorAtom } from '@audio/dynamics-compressor/audio'
 import { deesser as deesserAtom } from '@audio/dynamics-deesser/audio'
@@ -1275,24 +1276,22 @@ test('multiband manifest: declares its tail from its low crossover; a burst is 6
 test('softclip manifest: streams; oversampled, it is the whole call on the signal padded with silence, `latency` samples late', () => {
 	// The whole call reads its kernels over the signal alone and divides one its edges cut short by what is left of it;
 	// with silence past the kernels' reach on either side it reads every kernel whole, as the stream does from its first
-	// sample. Bit for bit at N = 1, 2, 4, 8; at 3, 5, 6, 7 the whole call's resampler finds each point's phase by
-	// stepping 1/N rounded to a double, which drifts off the stream's by a few ulps over seconds: one float32 step at most
-	// (2^-24 for an output under 1). The whole call on the signal as it is differs only within the kernels' reach of an
-	// end: latency + 16 samples
+	// sample: bit for bit at every N, as @audio/resample-sinc's resampler steps each point's phase in whole numbers. The
+	// whole call on the signal as it is differs only within the kernels' reach of an end: the oversampler's ring from the
+	// start, its latency from the end
 	let r = 3, u = () => (r = (Math.imul(r, 1664525) + 1013904223) >>> 0) / 4294967296
 	for (let N = 1; N <= 8; N++) for (let [t, curve] of ['tanh', 'atan', 'cubic', 'sin', 'hard'].entries()) {
 		let sampleRate = [22050, 44100, 48000, 96000, 44100][t], n = 3000, P = 64, drive = Math.fround(0.1 + 19.9 * u() ** 2), ceiling = Math.fround(0.05 + 0.95 * u())
-		let p = { curve, drive, ceiling, oversample: N }, L = softclipAtom.latency({ sampleRate, params: paramsOf(softclipAtom, p) })
+		let p = { curve, drive, ceiling, oversample: N }, L = softclipAtom.latency({ sampleRate, params: paramsOf(softclipAtom, p) }), o = N > 1 ? oversampler(N, 0) : null
 		let x = Float32Array.from({ length: n }, (_, i) => 0.9 * Math.sin(2 * Math.PI * 3000 * i / sampleRate) * Math.sin(i / 400) + 0.2 * (u() - 0.5))
 		let pad = new Float32Array(n + 2 * P), xin = new Float32Array(n + L)
 		pad.set(x, P); xin.set(x)
 		let want = softclip(pad, { ...p, fs: sampleRate }).subarray(P, P + n), bare = softclip(x, { ...p, fs: sampleRate })
 		for (let block of [1, 37, 128]) {
-			let y = atomRun(softclipAtom, [xin], { params: p, block, sampleRate })[0].subarray(L), worst = 0, edge = 0
-			for (let i = 0; i < n; i++) { worst = Math.max(worst, Math.abs(y[i] - want[i])); if (y[i] !== bare[i]) edge = Math.max(edge, Math.min(i, n - 1 - i) + 1) }
-			if (N & (N - 1)) ok(worst <= 2 ** -24, `oversample ${N}, ${curve}, blocks of ${block}: within ${worst.toExponential(1)} of the padded whole call`)
-			else ok(y.every((v, i) => Object.is(v, want[i])), `oversample ${N}, ${curve}, blocks of ${block}: the padded whole call, bit for bit`)
-			ok(edge <= (N > 1 ? L + 16 : 0), `oversample ${N}, ${curve}: the whole call as it is parts only within ${edge} samples of an end`)
+			let y = atomRun(softclipAtom, [xin], { params: p, block, sampleRate })[0].subarray(L), edge = 0
+			for (let i = 0; i < n; i++) if (y[i] !== bare[i]) edge = Math.max(edge, Math.min(i, n - 1 - i) + 1)
+			ok(y.every((v, i) => Object.is(v, want[i])), `oversample ${N}, ${curve}, blocks of ${block}: the padded whole call, bit for bit`)
+			ok(edge <= (o ? Math.max(o.ring, o.latency) : 0), `oversample ${N}, ${curve}: the whole call as it is parts only within ${edge} samples of an end`)
 		}
 	}
 })

@@ -26,11 +26,8 @@ export function shaper(options?: SoftclipOptions): (x: number) => number
 /** The curves, in the order softclipBlock's settings name them. */
 export const CURVES: readonly ['tanh', 'atan', 'cubic', 'sin', 'hard']
 
-/** An N-times oversampler for softclipBlock: the 32-tap Lanczos kernels @audio/resample-sinc reads with (up, one per phase, and down) and their sums; `latency`: the samples a sample comes out after it goes in, 15 + ⌈17/N⌉. */
-export function oversampler(N: number): { N: number, up: Float64Array, upSum: Float64Array, down: Float64Array, downSum: Float64Array, latency: number }
+/** An N-times oversampler for softclipBlock, one a channel, for blocks of up to `maxBlockSize` samples: @audio/resample-sinc's, on the arithmetic the whole-buffer call resamples with; `latency`: the samples a sample comes out after it goes in (31 at any N from 2). */
+export { oversampler } from '@audio/resample-sinc'
 
-/** One channel's state for softclipBlock: its positions, its last samples and its last points. */
-export function softclipState(): { at: Float64Array, xs: Float64Array, ps: Float32Array }
-
-/** The streaming form, allocating nothing; the manifest's path: one block of one channel into `out` (may be `x`, returned). `settings`: Float64Array(4), the curve (its index in CURVES), drive, ceiling, π·drive/2. `os`: oversampler(N), or null to shape each sample as it is; oversampled, `out` lags `x` by its `latency`, each sample what the whole-buffer call gives on the signal padded with silence. `lanes`: drive and ceiling for each sample, as a host's ramp moves them, from 0 and `stride`, written into `settings` sample by sample (an oversampled sample's points take its own); empty or absent, `settings`' own. */
-export function softclipBlock(x: Float32Array, out: Float32Array, settings: Float64Array, os: ReturnType<typeof oversampler> | null, state: ReturnType<typeof softclipState>, lanes?: Float64Array, stride?: number): Float32Array
+/** The streaming form, allocating nothing; the manifest's path: one block of one channel into `out` (may be `x`, returned). `settings`: Float64Array(4), the curve (its index in CURVES), drive, ceiling, π·drive/2. `os`: the channel's oversampler(N, maxBlockSize), or null to shape each sample as it is; oversampled, `out` lags `x` by its `latency`, each sample what the whole-buffer call gives on the signal padded with silence. `lanes`: drive and ceiling for each sample, as a host's ramp moves them, from 0 and `stride`, written into `settings` sample by sample (an oversampled sample's points take its own); empty or absent, `settings`' own. */
+export function softclipBlock(x: Float32Array, out: Float32Array, settings: Float64Array, os: import('@audio/resample-sinc').Oversampler | null, lanes?: Float64Array, stride?: number): Float32Array

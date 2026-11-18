@@ -50,14 +50,19 @@ For one processor: `npm install @audio/dynamics-compressor`, then `import compre
 | `compressor`, `limiter`, `gate`, `expander`, `unlimit`, `deesser`, `ducker`, `compand`, `opto`, `fet`, `vca`, `varimu` | Batch calls return a new buffer. Calling with options returns a writer; keep it across chunks and call with no arguments to flush. | `sampleRate` |
 | `softclip` | Returns a new buffer. Its writer buffers until flush when `oversample > 1`. | `fs` |
 | `transientShaper` | Mutates and returns the input. Reuse the same options object across chunks; a fresh object resets the envelopes. | `fs` |
-| `multiband`, `leveler` | Mutate and return the input. Whole-buffer processing; no writer form. | `fs` |
+| `multiband` | Mutates and returns the input. `multibandStream(opts)` is its writer, `{ write, flush }`: chunks give what the whole buffer gives. | `fs` |
+| `leveler` | Mutates and returns the input. Whole-buffer processing; no writer form: it measures the whole take. | `fs` |
 | `envelope` | Returns a stateful sample → level function. Create another follower to reset. | `sampleRate` |
 
 PCM is mono `Float32Array`; process channels with separate state/writers. Sample rate defaults to 44100 Hz. Gains/thresholds are dB and attack/release/lookahead are milliseconds unless stated otherwise: `softclip.drive` and transient-shaper gains are linear, while `leveler.frame` is seconds. Do not substitute `fs` for `sampleRate` indiscriminately; only some processors accept that alias.
 
 Batch compression and a fresh writer fed the same signal produce the same samples. Lookahead writers can return fewer samples until flush; concatenate every returned block, including the final flush. An empty chunk is a zero-length write, not a flush. Treat flush as the end of a signal and create a new writer to reset. Options are construction settings, not a live automation interface.
 
-The leaf `/audio` exports are host processor factories with their own parameter metadata. Some controls restart their processor, and some factories require a whole render (`streaming: false`); check those limits before using an AudioWorklet adapter.
+The leaf `/audio` exports are host processor factories with their own parameter metadata. In those that stream, a block allocates nothing and every control is live, read each block, except the ones that set the latency: `lookahead` of the gate, limiter and deesser, the limiter's `truePeak` and softclip's `oversample` restart their processor. All stream but `leveler` (`streaming: false`), which measures the whole take to tell speech from pause; check that before using an AudioWorklet adapter. Oversampled, softclip's output comes 15 + ⌈17/N⌉ samples late (declared latency).
+
+A control that sets the gain with nothing behind it declares `smoothing: 0.02`: the makeup of the compressor, fet, vca, opto, varimu and multiband, compand's output levels, the expander's threshold, ratio, knee, range and link, the ducker's threshold, ratio, knee and range, the gate's range, the multiband's band settings, softclip's drive and ceiling, unlimit's ceiling and the transient shaper's gains. A host ramps a change of one over 20 ms in calls of 32 frames at most, and the processor plays that ramp sample by sample, 32 frames late, as one line whatever the host's calls; a value held is the value itself, sample for sample. The other controls reach the gain through a follower (attack and release, a gain reduction's smoother, the limiter's line), retune a filter with its state kept (the deesser's band; the multiband's `low` and `high`, smoothed too, so a host's ramp retunes the crossovers each call) or count samples (the gate's hold).
+
+Stereo link: `link` (0 to 1) on the compressor, expander, gate, limiter, fet, opto and vca factories sets the level each channel's gain computer reads to `link` times the loudest channel's plus `1 − link` times its own. At 1 every channel takes one gain, so the stereo image holds when one side is louder; at 0 (the default) each channel is its own, as before. varimu has none: its detector reads its own output, sample by sample. Key: the compressor, expander, gate, fet, opto, vca and ducker factories take a second input bus, `key` (audio feeds it from the `key` option). When it carries channels the detector reads them in place of the input, a mono key serving every channel; with nothing on it each channel reads itself.
 
 
 ## envelope
@@ -77,7 +82,6 @@ for (let x of samples) level.push(follow(x))
 | `sampleRate` | `44100` | — |
 | `attack` | `5` | ms |
 | `release` | `50` | ms |
-| `truePeak` | `false` | hold the reconstructed waveform under the ceiling, not only its samples (ITU-R BS.1770 Annex 2): each interval read at 8 points through a 96-tap Kaiser sinc; 96 samples more delay |
 | `detector` | `'peak'` | `'peak'` or `'rms'` |
 | `rmsWindow` | `256` | samples, for RMS detector |
 
@@ -188,7 +192,6 @@ expander(data, { mode: 'upward', threshold: -20, ratio: 1.5, range: 20 })
 | `range` | `-40` (downward) / `20` (upward) | dB, max reduction (downward, negative) or max lift (upward, positive) |
 | `attack` | `5` | ms |
 | `release` | `50` | ms |
-| `truePeak` | `false` | hold the reconstructed waveform under the ceiling, not only its samples (ITU-R BS.1770 Annex 2): each interval read at 8 points through a 96-tap Kaiser sinc; 96 samples more delay |
 
 **Use when:** gentle noise-floor suppression without the abruptness of a gate (`downward`); restoring dynamics to over-compressed or over-limited material (`upward`).<br>
 **Not for:** hard removal of sound between phrases — use [gate](#gate).
@@ -367,7 +370,7 @@ compand(data, {
 
 ## multiband
 
-Multiband compressor — Linkwitz-Riley crossover split, an independent [compressor](#compressor) per band (upward half included), flat sum by construction (SoX `mcompand` class). The manifest (`multiband/audio`) is a 3-band "one-knob" mastering stage — one shared setting across low/mid/high, split at `low`/`high`. The kernel (`multiband(data, opts)`) takes N-1 crossover points and per-band settings directly, for full control; every `bands` entry is spread straight into `compressor()`, so upward compression and `depth` are already there per band.
+Multiband compressor — Linkwitz-Riley crossover split, an independent [compressor](#compressor) per band (upward half included), flat sum by construction (SoX `mcompand` class): each band also carries the allpasses of the crossovers over it, so with nothing compressed the bands add to the crossovers' allpass, the input's magnitude with its phase turned (flat within 1e-5 dB). Up to 0.4.3, three bands summed 0.12 dB down at 1.5 kHz with crossovers at 200 and 2000 Hz, and 2.5 dB down where the two met. The manifest (`multiband/audio`) is a 3-band "one-knob" mastering stage — one shared setting across low/mid/high, split at `low`/`high`. The kernel (`multiband(data, opts)`) takes N-1 crossover points and per-band settings directly, for full control; every `bands` entry is spread straight into `compressor()`, so upward compression and `depth` are already there per band.
 
 ```js
 import { multiband } from '@audio/dynamics'
@@ -431,7 +434,7 @@ The umbrella also exposes pure dB gain-curve helpers: `compressorGain(levelDb, t
 ## See also
 
 * [denoise](https://github.com/audiojs/denoise) — umbrella for everything noise; its `gate`/`deesser` are seconds-unit adapters over this package (2026-07 near-dupe merge)
-* [filter](https://github.com/audiojs/filter) — biquads for deesser sidechain
+* [filter](https://github.com/audiojs/filter) — biquads; the deesser's sidechain sections are its RBJ formulas
 * [effect](https://github.com/audiojs/effect) — modulation effects
 * [stretch](https://github.com/audiojs/stretch) — sibling package
 

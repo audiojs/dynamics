@@ -61,3 +61,12 @@ export function compressorState(attack: number, release: number, sampleRate: num
 
 /** Compress block `x` into `out` (returned), carrying `state` across blocks: detector, gain curve and smoother fused. */
 export function compress(x: Float32Array, out: Float32Array, state: CompressorState, curve: { threshold: number, ratio: number, knee: number, upThreshold?: number | null, upRatio: number, upKnee: number, upRange: number }, depth?: number, makeup?: number): Float32Array
+
+/** `compress` on typed arrays, allocating nothing once its scratch is as long as the block. `poles`: Float64Array(4), the smoother's y₁ and y, the RMS window's sum and position; `buf`: the window's squares (empty for peak). `settings`: Float64Array(14), threshold, ratio, knee, 1 for upward on, upThreshold, upRatio, upKnee, upRange, depth, makeup, the smoother's attack and release coefficients, 1 for RMS, the window's length. It is compressLevel then compressGain. */
+export function compressBlock(x: Float32Array, out: Float32Array, poles: Float64Array, settings: Float64Array, buf: Float64Array): Float32Array
+
+/** compressBlock's detector, allocating nothing; the manifest's path: each sample's level into `level` (as long as `x` or longer), |x| or the RMS window's mean square, linear. Between it and compressGain a level may come from elsewhere: a key, the loudest of linked channels. */
+export function compressLevel(x: Float32Array, level: Float64Array, poles: Float64Array, settings: Float64Array, buf: Float64Array): void
+
+/** compressBlock's gain computer and smoother, allocating nothing; the manifest's path: `x` into `out` (may be `x`, returned), each sample by the gain of its level in `level`. `makeup`: the makeup (dB) for each sample (as long as `x` or longer), as a host's ramp moves it; empty or absent, `settings`'s. */
+export function compressGain(x: Float32Array, level: Float64Array, out: Float32Array, poles: Float64Array, settings: Float64Array, makeup?: Float64Array): Float32Array

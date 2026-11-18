@@ -25,3 +25,6 @@ export default function varimu(options?: VarimuOptions): (chunk?: Float32Array) 
 
 /** { write, flush } streaming primitive underlying the default export's streaming form. */
 export function varimuStream(options?: VarimuOptions): { write(chunk: Float32Array): Float32Array, flush(): Float32Array }
+
+/** One block of one channel into `out` (may be `x`), allocating nothing; the manifest's path. `state`: Float64Array(4), the RMS follower, the gain reduction (dB), the window's sum and position; `ring`: the window's squares. `settings`: Float64Array(6), threshold, knee, makeup (dB), the attack coefficient, the gain's release coefficient, the follower's release coefficient. `makeup`: the makeup (dB) for each sample (as long as `x` or longer), as a host's ramp moves it; empty or absent, `settings`'s. The follower reads the output before makeup. */
+export function varimuBlock(x: Float32Array, out: Float32Array, state: Float64Array, ring: Float32Array, settings: Float64Array, makeup?: Float64Array): Float32Array

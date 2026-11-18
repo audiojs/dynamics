@@ -28,7 +28,7 @@ export interface DuckerOptions {
 
 export declare const ducker: {
   (ctx: Ctx): Process
-  channels: {"inputs":[2,2],"outputs":[2]}
+  channels: {"inputs":[{"channels":"any"},{"channels":"any","name":"key"}],"outputs":"any"}
   tail: 0
   params: {
     /** -60..0 dB (default -30) */
@@ -39,9 +39,9 @@ export declare const ducker: {
     "knee": { type: "number", default: 6 }
     /** -90..0 dB (default -24) */
     "range": { type: "number", default: -24 }
-    /** 0.1..200 ms (default 20) [restart] */
+    /** 0.1..200 ms (default 20) */
     "attack": { type: "number", default: 20 }
-    /** 1..2000 ms (default 300) [restart] */
+    /** 1..2000 ms (default 300) */
     "release": { type: "number", default: 300 }
   }
 }

@@ -23,3 +23,6 @@ export default function compand(options?: CompandOptions): (chunk?: Float32Array
 
 /** { write, flush } streaming primitive underlying the default export's streaming form. */
 export function compandStream(options?: CompandOptions): { write(chunk: Float32Array): Float32Array, flush(): Float32Array }
+
+/** One block of one channel into `out` (may be `x`), allocating nothing; the manifest's path. `state`: Float64Array(3), the follower, the RMS window's sum and position; `ring`: the window's squares (empty for peak). `settings`: Float64Array(3), the follower's attack and release coefficients, 1 for RMS. `points`: inDb, outDb, … sorted by inDb. `outs`: each point's outDb for each sample, as a host's ramp moves them, point j's from j·`stride`, written into `points` sample by sample; empty or absent, `points`' own. */
+export function compandBlock(x: Float32Array, out: Float32Array, state: Float64Array, ring: Float32Array, settings: Float64Array, points: Float64Array, outs?: Float64Array, stride?: number): Float32Array

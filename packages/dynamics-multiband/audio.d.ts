@@ -37,8 +37,7 @@ export interface MultibandOptions {
 export declare const multiband: {
   (ctx: Ctx): Process
   channels: "any"
-  streaming: false
-  tail: 0.3
+  tail: (at: { sampleRate: number, params: Live, buffers: {} }) => number
   params: {
     /** 40..1000 Hz (default 200) */
     "low": { type: "number", default: 200 }

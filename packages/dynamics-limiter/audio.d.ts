@@ -18,6 +18,8 @@ export interface LimiterOptions {
   "release"?: Auto
   /** default false */
   "truePeak"?: boolean
+  /** 0..1 (default 0) */
+  "link"?: Auto
   at?: number | string
   duration?: number | string
 }
@@ -25,15 +27,17 @@ export interface LimiterOptions {
 export declare const limiter: {
   (ctx: Ctx): Process
   channels: "any"
-  latency: (ctx: { sampleRate: number, params: Live }) => number
+  latency: (at: { sampleRate: number, params: Live, buffers: {} }) => number
   params: {
-    /** -30..0 dB (default -0.3) [restart] */
+    /** -30..0 dB (default -0.3) */
     "ceiling": { type: "number", default: -0.3 }
     /** 0.1..20 ms (default 5) [restart] */
     "lookahead": { type: "number", default: 5 }
-    /** 1..1000 ms (default 50) [restart] */
+    /** 1..1000 ms (default 50) */
     "release": { type: "number", default: 50 }
     /** default false [restart] */
     "truePeak": { type: "bool", default: false }
+    /** 0..1 (default 0) */
+    "link": { type: "number", default: 0 }
   }
 }

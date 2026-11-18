@@ -20,24 +20,28 @@ export interface OptoOptions {
   "attack"?: Auto
   /** -12..24 dB (default 0) */
   "makeup"?: Auto
+  /** 0..1 (default 0) */
+  "link"?: Auto
   at?: number | string
   duration?: number | string
 }
 
 export declare const opto: {
   (ctx: Ctx): Process
-  channels: "any"
-  tail: 1
+  channels: {"inputs":[{"channels":"any"},{"channels":"any","name":"key"}],"outputs":"any"}
+  tail: 0
   params: {
-    /** -60..0 dB (default -20) [restart] */
+    /** -60..0 dB (default -20) */
     "threshold": { type: "number", default: -20 }
-    /** 1.5..6 (default 3) [restart] */
+    /** 1.5..6 (default 3) */
     "ratio": { type: "number", default: 3 }
-    /** 4..24 dB (default 10) [restart] */
+    /** 4..24 dB (default 10) */
     "knee": { type: "number", default: 10 }
-    /** 1..100 ms (default 10) [restart] */
+    /** 1..100 ms (default 10) */
     "attack": { type: "number", default: 10 }
-    /** -12..24 dB (default 0) [restart] */
+    /** -12..24 dB (default 0) */
     "makeup": { type: "number", default: 0 }
+    /** 0..1 (default 0) */
+    "link": { type: "number", default: 0 }
   }
 }

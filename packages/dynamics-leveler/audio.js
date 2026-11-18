@@ -6,6 +6,10 @@
 // of the kernel exists to wrap chunk-by-chunk. Declared streaming: false instead; the
 // host buffers the whole input and calls process once with frames = totalFrames, which
 // is exactly the batch shape `leveler(data, opts)` already expects.
+// It decides over the take, which no delay would let it do in a stream: what is speech
+// and what is pause is measured against the energy mean of every frame of the take over
+// −70 dBFS (`gate` dB under it), and the pauses before the first speech take that
+// speech's gain.
 
 import levelerCurve from './leveler.js'
 

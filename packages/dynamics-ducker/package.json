@@ -13,6 +13,9 @@
       "default": "./audio.js"
     }
   },
+  "scripts": {
+    "prepublishOnly": "node ../../../compile/tools/tested.js"
+  },
   "files": [
     "ducker.js",
     "audio.js",

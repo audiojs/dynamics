@@ -37,3 +37,12 @@ export function expanderGain(levelDb: number, threshold: number, ratio: number, 
 
 /** Soft-knee upward expansion curve — the above-threshold complement of expanderGain. Returns gain lift in dB (≥ 0), clamped to rangeDb (positive). */
 export function upwardExpanderGain(levelDb: number, threshold: number, ratio: number, kneeDb: number, rangeDb: number): number
+
+/** One block of one channel into `out` (may be `x`), allocating nothing once its scratch is as long as the block. `state`: Float64Array(3), the follower, the RMS window's sum and position; `ring`: the window's squares (empty for peak). `settings`: Float64Array(8), 1 for upward, threshold, ratio, knee, range (dB, signed as the curve takes it), the follower's attack and release coefficients, 1 for RMS. It is expandLevel then expandGain. */
+export function expandBlock(x: Float32Array, out: Float32Array, state: Float64Array, ring: Float32Array, settings: Float64Array): Float32Array
+
+/** expandBlock's follower, allocating nothing; the manifest's path: its level after each sample into `level` (as long as `x` or longer), linear. Between it and expandGain a level may come from elsewhere: a key, the loudest of linked channels. */
+export function expandLevel(x: Float32Array, level: Float64Array, state: Float64Array, ring: Float32Array, settings: Float64Array): void
+
+/** expandBlock's gain, allocating nothing; the manifest's path: `x` into `out` (may be `x`, returned), each sample by the curve at its level in `level`. `lanes`: threshold, ratio, knee and range (a magnitude, signed by `settings`' mode) for each sample, as a host's ramp moves them, from 0, `stride`, 2·`stride` and 3·`stride`; empty or absent, `settings`'s. */
+export function expandGain(x: Float32Array, level: Float64Array, out: Float32Array, settings: Float64Array, lanes?: Float64Array, stride?: number): Float32Array

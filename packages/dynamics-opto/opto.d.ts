@@ -27,3 +27,12 @@ export default function opto(options?: OptoOptions): (chunk?: Float32Array) => F
 
 /** { write, flush } streaming primitive underlying the default export's streaming form. */
 export function optoStream(options?: OptoOptions): { write(chunk: Float32Array): Float32Array, flush(): Float32Array }
+
+/** One block of one channel into `out` (may be `x`), allocating nothing once its scratch is as long as the block; optoLevel then optoGain. `state`: Float64Array(5), the RMS follower, the gain reduction (dB), the T4 memory, the window's sum and position; `ring`: the window's squares. `settings`: Float64Array(9), threshold, ratio, knee, makeup (dB), the attack coefficient, the follower's release coefficient, the memory's coefficient, the nominal release (ms), the sample rate. */
+export function optoBlock(x: Float32Array, out: Float32Array, state: Float64Array, ring: Float32Array, settings: Float64Array): Float32Array
+
+/** optoBlock's follower, allocating nothing; the manifest's path: its level after each sample into `level` (as long as `x` or longer), linear. Between it and optoGain a level may come from elsewhere: a key, the loudest of linked channels. */
+export function optoLevel(x: Float32Array, level: Float64Array, state: Float64Array, ring: Float32Array, settings: Float64Array): void
+
+/** optoBlock's gain, allocating nothing; the manifest's path: `x` into `out` (may be `x`, returned), each sample by the gain reduction its level in `level` calls for, smoothed, its release stretched by the T4 memory. `makeup`: the makeup (dB) for each sample (as long as `x` or longer), as a host's ramp moves it; empty or absent, `settings`'s. */
+export function optoGain(x: Float32Array, level: Float64Array, out: Float32Array, state: Float64Array, settings: Float64Array, makeup?: Float64Array): Float32Array

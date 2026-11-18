@@ -22,3 +22,15 @@ export function softclipStream(options?: SoftclipOptions): { write(chunk: Float3
 
 /** Build the memoryless transfer function for `curve`/`drive`/`ceiling` (ignores `oversample`/`fs`). */
 export function shaper(options?: SoftclipOptions): (x: number) => number
+
+/** The curves, in the order softclipBlock's settings name them. */
+export const CURVES: readonly ['tanh', 'atan', 'cubic', 'sin', 'hard']
+
+/** An N-times oversampler for softclipBlock: the 32-tap Lanczos kernels @audio/resample-sinc reads with (up, one per phase, and down) and their sums; `latency`: the samples a sample comes out after it goes in, 15 + ⌈17/N⌉. */
+export function oversampler(N: number): { N: number, up: Float64Array, upSum: Float64Array, down: Float64Array, downSum: Float64Array, latency: number }
+
+/** One channel's state for softclipBlock: its positions, its last samples and its last points. */
+export function softclipState(): { at: Float64Array, xs: Float64Array, ps: Float32Array }
+
+/** The streaming form, allocating nothing; the manifest's path: one block of one channel into `out` (may be `x`, returned). `settings`: Float64Array(4), the curve (its index in CURVES), drive, ceiling, π·drive/2. `os`: oversampler(N), or null to shape each sample as it is; oversampled, `out` lags `x` by its `latency`, each sample what the whole-buffer call gives on the signal padded with silence. `lanes`: drive and ceiling for each sample, as a host's ramp moves them, from 0 and `stride`, written into `settings` sample by sample (an oversampled sample's points take its own); empty or absent, `settings`' own. */
+export function softclipBlock(x: Float32Array, out: Float32Array, settings: Float64Array, os: ReturnType<typeof oversampler> | null, state: ReturnType<typeof softclipState>, lanes?: Float64Array, stride?: number): Float32Array

@@ -47,13 +47,13 @@ export declare const unlimit: {
     "crestTarget": { type: "number", default: 10 }
     /** -60..24 dB (default 24) */
     "ceiling": { type: "number", default: 24 }
-    /** 0.1..10 ms (default 0.5) [restart] */
+    /** 0.1..10 ms (default 0.5) */
     "fastAttack": { type: "number", default: 0.5 }
-    /** 1..100 ms (default 20) [restart] */
+    /** 1..100 ms (default 20) */
     "fastRelease": { type: "number", default: 20 }
-    /** 1..200 ms (default 20) [restart] */
+    /** 1..200 ms (default 20) */
     "slowAttack": { type: "number", default: 20 }
-    /** 10..1000 ms (default 200) [restart] */
+    /** 10..1000 ms (default 200) */
     "slowRelease": { type: "number", default: 200 }
   }
 }

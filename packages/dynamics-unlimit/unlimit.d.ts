@@ -35,3 +35,9 @@ export function unlimitGain(fastDb: number, slowDb: number, amount: number, driv
 
 /** adaptive (default) pure mapping: transient deficit (crestTarget − peak-held transientness) → target lift (dB), gated by onset presence. */
 export function unlimitDeficitGain(transientnessDb: number, crestTarget: number, amount: number, drive: number): number
+
+/** One channel's state for unlimitBlock: the fast, slow and smoothing followers, the held transientness, the samples since a fresh peak, the confirmation. */
+export function unlimitState(): Float64Array
+
+/** One block of one channel into `out` (may be `x`), allocating nothing; the manifest's path. `settings`: Float64Array(12), amount, drive, 1 for adaptive, crestTarget, the ceiling (linear, Infinity for none), the fast followers' attack and release coefficients, the slow one's, the hold's fall (dB a sample), the confirmation's step (a sample), the attack window (samples). `ceiling`: the ceiling (linear) for each sample, as a host's ramp moves it; empty or absent, `settings`'s. */
+export function unlimitBlock(x: Float32Array, out: Float32Array, state: Float64Array, settings: Float64Array, ceiling?: Float64Array): Float32Array

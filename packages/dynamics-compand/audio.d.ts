@@ -31,17 +31,17 @@ export declare const compand: {
   channels: "any"
   tail: 0
   params: {
-    /** -90..0 dB (default -90) [restart] */
+    /** -90..0 dB (default -90) */
     "out0": { type: "number", default: -90 }
-    /** -90..0 dB (default -60) [restart] */
+    /** -90..0 dB (default -60) */
     "out1": { type: "number", default: -60 }
-    /** -90..0 dB (default -20) [restart] */
+    /** -90..0 dB (default -20) */
     "out2": { type: "number", default: -20 }
-    /** -90..0 dB (default -8) [restart] */
+    /** -90..0 dB (default -8) */
     "out3": { type: "number", default: -8 }
-    /** 0.1..200 ms (default 5) [restart] */
+    /** 0.1..200 ms (default 5) */
     "attack": { type: "number", default: 5 }
-    /** 1..2000 ms (default 200) [restart] */
+    /** 1..2000 ms (default 200) */
     "release": { type: "number", default: 200 }
   }
 }

@@ -43,27 +43,28 @@ export interface DeesserOptions {
 export declare const deesser: {
   (ctx: Ctx): Process
   channels: "any"
-  latency: (ctx: { sampleRate: number, params: Live }) => number
+  latency: (at: { sampleRate: number, params: Live, buffers: {} }) => number
+  tail: (at: { sampleRate: number, params: Live, buffers: {} }) => number
   params: {
-    /** default "split" [restart] */
+    /** default "split" */
     "mode": { type: "enum", values: ["split","band","broadband"], default: "split" }
-    /** 1000..16000 Hz (default 3500) [restart] */
+    /** 1000..16000 Hz (default 3500) */
     "split": { type: "number", default: 3500 }
-    /** 2000..16000 Hz (default 6500) [restart] */
+    /** 2000..16000 Hz (default 6500) */
     "fc": { type: "number", default: 6500, alias: "freq" }
-    /** 0.3..10 (default 1.4) [restart] */
+    /** 0.3..10 (default 1.4) */
     "Q": { type: "number", default: 1.4, alias: "q" }
-    /** -12..24 dB (default 0) [restart] */
+    /** -12..24 dB (default 0) */
     "threshold": { type: "number", default: 0 }
-    /** 1..20 (default 4) [restart] */
+    /** 1..20 (default 4) */
     "ratio": { type: "number", default: 4 }
-    /** -24..0 dB (default -8) [restart] */
+    /** -24..0 dB (default -8) */
     "range": { type: "number", default: -8 }
-    /** 0..24 dB (default 6) [restart] */
+    /** 0..24 dB (default 6) */
     "knee": { type: "number", default: 6 }
-    /** 0.1..100 ms (default 1) [restart] */
+    /** 0.1..100 ms (default 1) */
     "attack": { type: "number", default: 1 }
-    /** 1..1000 ms (default 15) [restart] */
+    /** 1..1000 ms (default 15) */
     "release": { type: "number", default: 15 }
     /** 0..20 ms (default 5) [restart] */
     "lookahead": { type: "number", default: 5 }

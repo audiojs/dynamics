@@ -22,3 +22,6 @@ export function latency(options?: LimiterOptions): number
 
 /** { write, flush } streaming primitive underlying the default export's streaming form. */
 export function limiterStream(options?: LimiterOptions): { write(chunk: Float32Array): Float32Array, flush(): Float32Array }
+
+/** One channel's lookahead line, the core of limiterStream (`ceiling` and `release` are read from `settings`, not `options`). `run(x, out)` limits a block into `out` (may be `x`), allocating nothing once its scratch is as long as the block, `latency(options)` samples late, 0 while the line first fills, and returns how many samples that was. It is `level(x, peaks)`, each sample's peak into `peaks` (as long as `x` or longer; |x|, or with truePeak the interval's after it), then `apply(x, peaks, out)`, the gain those peaks call for, both allocating nothing: between them a peak may come from elsewhere (the loudest of linked channels). `end()` returns what the line still holds and empties it. `settings`: Float64Array(2), the ceiling (linear) and the release coefficient, read each block. */
+export function limiterLine(options: LimiterOptions, settings: Float64Array): { run(x: Float32Array, out: Float32Array): number, level(x: Float32Array, peaks: Float64Array): void, apply(x: Float32Array, peaks: Float64Array, out: Float32Array): number, end(): Float32Array }

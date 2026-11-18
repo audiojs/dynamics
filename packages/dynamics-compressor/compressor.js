@@ -44,9 +44,53 @@ export function compressorState(attack, release, sampleRate, type = 'peak', win 
 /** Compress block `x` into `out` and return it: `detector`, `gainDb` and `smoother` as one loop over locals,
  *  the state carried in `s` from block to block. Gain 10^((−y·depth + makeup)/20). */
 export function compress(x, out, s, c, depth = 1, makeup = 0) {
-  let { aA, aR, rms, n, buf } = s, bA = 1 - aA, bR = 1 - aR, y1 = s.y1, y = s.y, sum = s.sum, j = s.i
-  let T = c.threshold, R = c.ratio, K = c.knee, uT = c.upThreshold, uR = c.upRatio, uK = c.upKnee, uG = c.upRange
-  let up = uT != null
+  // copied into compressBlock's typed form and back; SET and POLES are scratch: compressBlock calls nothing that comes here
+  let set = SET, p = POLES, up = c.upThreshold != null
+  set[0] = c.threshold; set[1] = c.ratio; set[2] = c.knee
+  set[3] = up ? 1 : 0; set[4] = up ? c.upThreshold : 0; set[5] = c.upRatio; set[6] = c.upKnee; set[7] = c.upRange
+  set[8] = depth; set[9] = makeup; set[10] = s.aA; set[11] = s.aR; set[12] = s.rms ? 1 : 0; set[13] = s.n
+  p[0] = s.y1; p[1] = s.y; p[2] = s.sum; p[3] = s.i
+  compressBlock(x, out, p, set, s.buf)
+  s.y1 = p[0]; s.y = p[1]; s.sum = p[2]; s.i = p[3]
+  return out
+}
+const SET = new Float64Array(14), POLES = new Float64Array(4)
+
+/** `compress` on typed arrays, allocating nothing: `p`, one channel's state, Float64Array(4): the smoother's poles y₁
+ *  and y, the RMS window's sum and position; `buf`, the window's squares (Float64Array, empty for peak). `set`, the
+ *  settings, Float64Array(14): threshold, ratio, knee; 1 when upward compression is on (0: off), upThreshold, upRatio,
+ *  upKnee, upRange; depth, makeup; the smoother's attack and release coefficients, eq. (7); 1 for RMS (0: peak), the
+ *  window's length. Its two halves, compressLevel and compressGain, let a level come from elsewhere between them (a
+ *  key, the loudest of linked channels). */
+export function compressBlock(x, out, p, set, buf) {
+  if (LEV.length < x.length) LEV = new Float64Array(x.length)
+  compressLevel(x, LEV, p, set, buf)
+  return compressGain(x, LEV, out, p, set)
+}
+let LEV = new Float64Array(0)
+
+/** compressBlock's detector: the level of each sample of `x` into `lev` (Float64Array, as long or longer), |x| or the
+ *  RMS window's mean square, linear. `p`, `set`, `buf` as compressBlock's (the window's sum and position change here). */
+export function compressLevel(x, lev, p, set, buf) {
+  let rms = set[12] === 1, n = set[13] | 0, sum = p[2], j = p[3] | 0
+  for (let i = 0; i < x.length; i++) {
+    let v = x[i]
+    if (rms) {
+      let sq = v * v
+      sum += sq - buf[j]; buf[j] = sq; j = (j + 1) % n
+      lev[i] = sum / n
+    } else lev[i] = Math.abs(v)
+  }
+  p[2] = sum; p[3] = j
+}
+
+/** compressBlock's gain computer and smoother: `x` into `out` (which may be `x`), each sample by the gain of its level
+ *  in `lev`, as compressLevel gives it. `p`, `set` as compressBlock's (the smoother's poles change here). `mk`: the
+ *  makeup (dB) for each sample (Float64Array, as long or longer), as a host's ramp moves it; empty (the default),
+ *  `set`'s. */
+export function compressGain(x, lev, out, p, set, mk = NONE) {
+  let T = set[0], R = set[1], K = set[2], up = set[3] === 1, uT = set[4], uR = set[5], uK = set[6], uG = set[7], depth = set[8], makeup = set[9]
+  let aA = set[10], aR = set[11], rms = set[12] === 1, bA = 1 - aA, bR = 1 - aR, y1 = p[0], y = p[1], ramp = mk.length > 0
   // Level: |x| in dB, or the window's mean square in dB (10·log10), floored at −200 dB
   let floor = rms ? 1e-20 : 1e-10, k = (rms ? 10 : 20) / Math.LN10
   // Under T − K/2 the downward curve is exactly 0, over uT + uK/2 the upward one exactly its resting value (and
@@ -54,19 +98,23 @@ export function compress(x, out, s, c, depth = 1, makeup = 0) {
   // this band. Its edges are compared in the linear level, set 1e-9 inside (~1e-8 dB), far over the log's
   // rounding, so a level in the band is one the dB comparison puts there too. Absurd thresholds (~1e3 dB, where
   // that rounding nears the margin) or NaN leave the band empty: every sample then takes the log.
+  // (An empty band is hi = −1, not lo = Infinity: a constant Infinity among lo's values made V8 box lo once a block.)
   let hi = Math.abs(T) + Math.abs(K) < 1e3 ? Math.exp((T - K / 2) / k) * (1 - 1e-9) : -1
   if (!(hi > floor)) hi = -1
-  let lo = !up ? -1 : !(Math.abs(uT) + Math.abs(uK) < 1e3) ? Infinity : uR === 1 ? -1 : Math.exp((uT + uK / 2) / k) * (1 + 1e-9)
-  let g0 = hi > lo ? gainDb(k * Math.log(hi), c) : 0
+  let lo = -1
+  if (up) {
+    if (!(Math.abs(uT) + Math.abs(uK) < 1e3)) hi = -1
+    else if (uR !== 1) lo = Math.exp((uT + uK / 2) / k) * (1 + 1e-9)
+  }
+  let g0 = 0
+  if (hi > lo) {
+    let db = k * Math.log(hi)
+    g0 = compressorGain(db, T, R, K)
+    if (up) g0 += upwardGain(db, uT, uR, uK, uG)
+  }
 
   for (let i = 0; i < x.length; i++) {
-    let v = x[i], l
-    if (rms) {
-      let sq = v * v
-      sum += sq - buf[j]; buf[j] = sq; j = (j + 1) % n
-      l = sum / n
-    } else l = Math.abs(v)
-    let g = g0
+    let v = x[i], l = lev[i], g = g0
     if (!(l > lo && l < hi)) {
       let db = k * Math.log(Math.max(l, floor))
       g = compressorGain(db, T, R, K)
@@ -76,11 +124,12 @@ export function compress(x, out, s, c, depth = 1, makeup = 0) {
     let r = aR * y1 + bR * -g
     y1 = -g > r ? -g : r
     y = aA * y + bA * y1
-    out[i] = v * db2lin(-y * depth + makeup)
+    out[i] = v * db2lin(-y * depth + (ramp ? mk[i] : makeup))
   }
-  s.y1 = y1; s.y = y; s.sum = sum; s.i = j
+  p[0] = y1; p[1] = y
   return out
 }
+const NONE = new Float64Array(0)
 
 /** Static gain, dB, at level `db`: the downward curve, plus the upward lift when `upThreshold` is set. */
 export function gainDb(db, c) {

@@ -1,6 +1,6 @@
 # @audio/dynamics-compressor [![npm](https://img.shields.io/npm/v/@audio/dynamics-compressor)](https://www.npmjs.com/package/@audio/dynamics-compressor) [![MIT](https://img.shields.io/badge/MIT-%E0%A5%90-white)](https://github.com/krishnized/license)
 
-Feed-forward soft-knee compressor (Giannoulis-Massberg topology)
+Feed-forward soft-knee compressor, gain reduction smoothed in the log domain (Giannoulis, Massberg & Reiss 2012)
 
 ```
 npm install @audio/dynamics-compressor

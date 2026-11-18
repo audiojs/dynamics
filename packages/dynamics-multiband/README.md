@@ -10,7 +10,7 @@ npm install @audio/dynamics-multiband
 import multiband from '@audio/dynamics-multiband'
 ```
 
-Multiband compressor — Linkwitz-Riley crossover split, an independent [compressor](#compressor) per band (upward half included), flat sum by construction (SoX `mcompand` class). The manifest (`multiband/audio`) is a 3-band "one-knob" mastering stage — one shared setting across low/mid/high, split at `low`/`high`. The kernel (`multiband(data, opts)`) takes N-1 crossover points and per-band settings directly, for full control; every `bands` entry is spread straight into `compressor()`, so upward compression and `depth` are already there per band.
+Multiband compressor — Linkwitz-Riley crossover split, an independent [compressor](#compressor) per band (upward half included), flat sum by construction (SoX `mcompand` class): each band also carries the allpasses of the crossovers over it, so with nothing compressed the bands add to the crossovers' allpass, the input's magnitude with its phase turned (flat within 1e-5 dB). Up to 0.4.3, three bands summed 0.12 dB down at 1.5 kHz with crossovers at 200 and 2000 Hz, and 2.5 dB down where the two met. The manifest (`multiband/audio`) is a 3-band "one-knob" mastering stage — one shared setting across low/mid/high, split at `low`/`high`. The kernel (`multiband(data, opts)`) takes N-1 crossover points and per-band settings directly, for full control; every `bands` entry is spread straight into `compressor()`, so upward compression and `depth` are already there per band.
 
 ```js
 import multiband from '@audio/dynamics-multiband'

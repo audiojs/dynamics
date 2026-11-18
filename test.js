@@ -1,7 +1,28 @@
 import test, { almost, ok, is } from 'tst'
+import { execFileSync } from 'node:child_process'
 import { compressor, limiter, gate, expander, unlimit, deesser, ducker, softclip, compand, envelope, transientShaper, multiband, opto, fet, vca, varimu, leveler } from './index.js'
-import { latency } from '@audio/dynamics-deesser'
+import { latency, deesserSet, deesserBand } from '@audio/dynamics-deesser'
 import { latency as limiterLatency } from '@audio/dynamics-limiter'
+import { highpass, lowpass, step, state } from '@audio/biquad'
+import crossover from '@audio/eq-crossover'
+import { split3 } from '@audio/dynamics-multiband'
+import { multiband as multibandAtom } from '@audio/dynamics-multiband/audio'
+import { softclip as softclipAtom } from '@audio/dynamics-softclip/audio'
+import { compand as compandAtom } from '@audio/dynamics-compand/audio'
+import { compressor as compressorAtom } from '@audio/dynamics-compressor/audio'
+import { deesser as deesserAtom } from '@audio/dynamics-deesser/audio'
+import { ducker as duckerAtom } from '@audio/dynamics-ducker/audio'
+import { expander as expanderAtom } from '@audio/dynamics-expander/audio'
+import { fet as fetAtom } from '@audio/dynamics-fet/audio'
+import { gate as gateAtom } from '@audio/dynamics-gate/audio'
+import { limiter as limiterAtom } from '@audio/dynamics-limiter/audio'
+import { opto as optoAtom } from '@audio/dynamics-opto/audio'
+import { unlimit as unlimitAtom } from '@audio/dynamics-unlimit/audio'
+import { varimu as varimuAtom } from '@audio/dynamics-varimu/audio'
+import { vca as vcaAtom } from '@audio/dynamics-vca/audio'
+import { transientShaper as transientShaperAtom } from '@audio/dynamics-transient-shaper/audio'
+import { leveler as levelerAtom } from '@audio/dynamics-leveler/audio'
+import { compressorGain } from '@audio/dynamics-compressor'
 
 const fs = 44100
 
@@ -922,4 +943,602 @@ test('multiband — per-band ballistics rate-invariant (was: always 44100)', () 
 	}
 	let p44 = probeDb(44100), p96 = probeDb(96000)
 	almost(p44, p96, 0.75, 'recovery trajectory rate-invariant: ' + p44.toFixed(2) + ' vs ' + p96.toFixed(2) + ' dB')
+})
+
+
+// --- manifests (audio.js), driven as a host drives them: an instance from a stub ctx, the signal in calls of `block`
+// frames, values changed between calls (contract 1.0: Parameters, Time; Lifecycle) ---
+
+const ATOMS = { compand: compandAtom, compressor: compressorAtom, deesser: deesserAtom, ducker: duckerAtom, expander: expanderAtom, fet: fetAtom, gate: gateAtom, limiter: limiterAtom, multiband: multibandAtom, opto: optoAtom, softclip: softclipAtom, transientShaper: transientShaperAtom, unlimit: unlimitAtom, varimu: varimuAtom, vca: vcaAtom }
+const restart = s => s.restart === true || !!s.flags?.includes('restart')
+const paramsOf = (m, set = {}) => Object.fromEntries(Object.entries(m.params).map(([k, s]) => { let v = k in set ? set[k] : s.default; return [k, s.type === 'number' ? Float32Array.of(v) : v] }))
+
+// `change`: { at, params } set from frame `at` on, a call starting there; `key`: input bus 1's channels ([] for a bus
+// nothing feeds), absent for none
+function atomRun (m, x, { params = {}, block = 128, sampleRate = fs, change, key } = {}) {
+	let live = paramsOf(m, params), proc = m({ sampleRate, maxBlockSize: block, maxChannels: Math.max(x.length, key?.length ?? 0), params: paramsOf(m, params), buffers: {} })
+	let out = x.map(c => new Float32Array(c.length)), n = x[0].length
+	for (let i = 0, k; i < n; i += k) {
+		k = Math.min(block, n - i)
+		if (change && i < change.at && i + k > change.at) k = change.at - i
+		if (change && i === change.at) for (let p in change.params) live[p] = m.params[p].type === 'number' ? Float32Array.of(change.params[p]) : change.params[p]
+		let ins = [x.map(c => c.subarray(i, i + k))]
+		if (key) ins.push(key.map(c => c.subarray(i, i + k)))
+		proc(ins, [out.map(c => c.subarray(i, i + k))], live)
+	}
+	return out
+}
+
+// a 200 Hz tone (more for channel c) stepping through -3, -30, -50 and -74 dB, 50 ms each; in the -30 dB step an 's'
+// (7 kHz) 20 dB over it
+function steps (n, c = 0, sr = fs) {
+	let d = new Float32Array(n), lv = [0.7, 0.03, 0.003, 0.0002], m = Math.round(sr / 20)
+	for (let i = 0; i < n; i++) {
+		let k = Math.floor(i / m) % 4, t = i / sr
+		d[i] = lv[k] * Math.sin(2 * Math.PI * (200 + 50 * c) * t) + (k === 1 ? 0.3 * Math.sin(2 * Math.PI * 7000 * t) : 0)
+	}
+	return d
+}
+// 90 Hz thuds each 0.1 s, decaying 40/s, an 's' in each, over noise 50 dB down
+function thuds (n, c = 0) {
+	let d = new Float32Array(n), r = 7 + c
+	for (let i = 0; i < n; i++) {
+		let t = (i % (fs / 10)) / fs
+		r = (Math.imul(r, 1664525) + 1013904223) >>> 0
+		d[i] = 0.9 * Math.exp(-t * 40) * Math.sin(2 * Math.PI * 90 * i / fs) + (t > 0.03 && t < 0.06 ? 0.3 : 0) * Math.sin(2 * Math.PI * 7000 * i / fs) + 0.003 * (r / 2147483648 - 1)
+	}
+	return d
+}
+
+test('manifests: restart marks only the params that set the latency, as `restart: true`', () => {
+	let marked = []
+	for (let [name, m] of Object.entries(ATOMS)) for (let [k, s] of Object.entries(m.params)) {
+		ok(!s.flags, `${name}.${k}: no flags`)
+		if (!restart(s)) continue
+		marked.push(`${name}.${k}`)
+		is(s.restart, true, `${name}.${k}: restart: true`)
+		let [a, b] = s.type === 'bool' ? [false, true] : [s.min, s.max], at = v => m.latency({ sampleRate: fs, params: paramsOf(m, { [k]: v }) })
+		ok(at(a) !== at(b), `${name}.${k} sets the latency: ${at(a)} samples at ${a}, ${at(b)} at ${b}`)
+	}
+	is(marked, ['deesser.lookahead', 'gate.lookahead', 'limiter.lookahead', 'limiter.truePeak', 'softclip.oversample'])
+})
+
+test('manifests: every other param is live: moved mid-signal, it is heard from that call on, and nothing before it moves', () => {
+	// settings under which each param is heard: a default can switch its part off (upRatio 1, a ceiling over every peak,
+	// band mode's fc and Q), a slow release keep the level over a threshold, a range clamp or a hold cover a change
+	const BASES = { compand: [{ release: 5 }], compressor: [{ upRatio: 3 }], deesser: [{}, { mode: 'band' }], ducker: [{ release: 5 }, { range: -12 }], expander: [{ release: 5 }], gate: [{}, { hold: 0, threshold: -25 }], limiter: [{ ceiling: -12 }], multiband: [{ upRatio: 3, release: 20 }] }
+	let n = fs / 2, at = 2 * 4410 + 64, other = s => s.type === 'enum' ? s.values.find(v => v !== s.default) : s.type === 'bool' ? !s.default : s.default > (s.min + s.max) / 2 ? s.min : s.max
+	for (let [name, m] of Object.entries(ATOMS)) {
+		let x = name === 'unlimit' ? [thuds(n), thuds(n, 1)] : [steps(n), steps(n, 1)]
+		for (let [k, s] of Object.entries(m.params)) {
+			if (restart(s)) continue
+			let before = 0, after = 0
+			for (let base of BASES[name] ?? [{}]) {
+				let a = atomRun(m, x, { params: base }), b = atomRun(m, x, { params: base, change: { at, params: { [k]: other(s) } } })
+				for (let c = 0; c < 2; c++) for (let i = 0; i < n; i++) if (a[c][i] !== b[c][i]) i < at ? before++ : after++
+			}
+			ok(!before && after, `${name}.${k} → ${other(s)}: ${after} samples move after the change, ${before} before`)
+		}
+	}
+})
+
+test('manifests: an attack or release changed while the gain moves is heard from the next sample, the gain continuous', () => {
+	// DC levels stepping at 0.3 s (the gain is then out/in, exactly; a sine over DC for the deesser's 's'), the time constant
+	// halved 30% into it. With the smoother's state kept, the gain's step across the change is about twice the step before
+	// it (a smoother of the linear gain steps a little more in dB: the gate's 2.0001), up to four times where the follower
+	// and the gain smoother share the setting (fet, vca, opto, varimu). A reset would jump the distance left, 2.5 to 58 dB
+	// here, against steps of 0.0002 to 5 dB
+	let s0 = 0.3 * fs | 0, n = s0 + fs / 2, dc = (a, b) => i => i < s0 ? a : b, ess = on => i => 0.02 + (on(i) ? 0.3 * Math.sin(2 * Math.PI * 7000 * i / fs) : 0)
+	const MOVES = [
+		['compressor', 'release', {}, dc(0.7, 0.01)], ['compressor', 'attack', {}, dc(0.01, 0.7)],
+		['fet', 'release', {}, dc(0.7, 0.01)], ['fet', 'attack', {}, dc(0.01, 0.7)],
+		['vca', 'release', {}, dc(0.7, 0.01)], ['vca', 'attack', {}, dc(0.01, 0.7)],
+		['varimu', 'release', {}, dc(0.7, 0.01)], ['varimu', 'attack', {}, dc(0.01, 0.7)],
+		['opto', 'attack', {}, dc(0.01, 0.7)],
+		['ducker', 'release', {}, dc(0.5, 0.005)], ['ducker', 'attack', {}, dc(0.005, 0.5)],
+		['expander', 'release', {}, dc(0.5, 0.005), 0.13], ['expander', 'attack', {}, dc(0.005, 0.02)],
+		['compand', 'release', {}, dc(0.7, 0.001)], ['compand', 'attack', {}, dc(0.001, 0.7)],
+		['gate', 'release', {}, dc(0.5, 0.001), 0.01], ['gate', 'attack', {}, dc(0.001, 0.5)],
+		['limiter', 'release', { ceiling: -6 }, dc(0.9, 0.3)],
+		['unlimit', 'fastRelease', {}, dc(0.1, 0.2), 0.015],
+		['deesser', 'release', { mode: 'broadband' }, ess(i => i < s0)], ['deesser', 'attack', { mode: 'broadband' }, ess(i => i >= s0)],
+	]
+	for (let [name, k, base, f, wait = 0] of MOVES) {
+		let m = ATOMS[name], x = Float32Array.from({ length: n }, (_, i) => f(i)), v = m.params[k].default
+		let L = typeof m.latency === 'function' ? m.latency({ sampleRate: fs, params: paramsOf(m, base) }) : 0
+		let c = s0 + L + Math.round((wait + 0.3 * v * 0.001) * fs) + 1
+		let gain = y => Float64Array.from(y[0], (o, i) => i >= L && Math.abs(x[i - L]) > 1e-6 ? db(Math.abs(o / x[i - L])) : NaN)
+		let a = gain(atomRun(m, [x], { params: base })), b = gain(atomRun(m, [x], { params: base, change: { at: c, params: { [k]: v / 2 } } }))
+		let moved = 0, heard = 0
+		for (let i = 0; i < n; i++) { if (i < c && !Object.is(a[i], b[i])) moved++; if (i >= c && i < c + 4000 && a[i] === a[i]) heard = Math.max(heard, Math.abs(a[i] - b[i])) }
+		let u = [], i = c - 1, j = c
+		while (u.length < 2) { if (b[i] === b[i]) u.unshift(i); i-- }
+		while (!(b[j] === b[j])) j++
+		let before = Math.abs(b[u[1]] - b[u[0]]), across = Math.abs(b[j] - b[u[1]]), bound = ['fet', 'vca', 'opto', 'varimu'].includes(name) ? 4 : 2.5
+		is(moved, 0, `${name}.${k}: nothing before the change moves`)
+		ok(heard > 0.01, `${name}.${k} ${v} → ${v / 2} ms: heard, ${heard.toFixed(2)} dB`)
+		ok(before > 0 && across <= bound * before, `${name}.${k}: the gain moving ${before.toExponential(2)} dB a sample, then across the change ${across.toExponential(2)} (≤ ${bound}×)`)
+	}
+})
+
+test('manifests: at settings held throughout, each is its kernel, bit for bit, at any rate, channel count and block', () => {
+	// the kernel's options from the manifest's params: compand's curve from its four outputs, expander's range signed by
+	// mode, the ducker keyed by its own input, multiband's bands one setting at low and high; numbers as a host delivers
+	// them, float32; a manifest with a latency comes out that late, the batch call aligned. The kernels read one channel:
+	// link held at 0, and a manifest with a key bus run with none and with one that carries no channels, as a host feeds
+	// it when nothing is keyed. softclip has its own test below (its whole call against the stream)
+	let same = (x, p, sampleRate, K) => K(x, { ...p, sampleRate })
+	const KERNEL = {
+		compand: (x, p, sampleRate) => compand(x, { points: [[-90, p.out0], [-60, p.out1], [-20, p.out2], [0, p.out3]], attack: p.attack, release: p.release, sampleRate }),
+		compressor: (x, p, sr) => same(x, p, sr, compressor), deesser: (x, p, sr) => same(x, p, sr, deesser),
+		ducker: (x, p, sampleRate) => ducker(x, x, { ...p, sampleRate }),
+		expander: (x, p, sampleRate) => expander(x, { ...p, range: p.mode === 'upward' ? p.range : -p.range, sampleRate }),
+		fet: (x, p, sr) => same(x, p, sr, fet), gate: (x, p, sr) => same(x, p, sr, gate), limiter: (x, p, sr) => same(x, p, sr, limiter),
+		multiband: (x, p, sr) => multiband(x.slice(), { fs: sr, freqs: [p.low, p.high], bands: { threshold: p.threshold, ratio: p.ratio, upThreshold: p.upThreshold, upRatio: p.upRatio, depth: p.depth, attack: p.attack, release: p.release, makeup: p.makeup } }),
+		opto: (x, p, sr) => same(x, p, sr, opto), unlimit: (x, p, sr) => same(x, p, sr, unlimit), varimu: (x, p, sr) => same(x, p, sr, varimu), vca: (x, p, sr) => same(x, p, sr, vca),
+		transientShaper: (x, p, sr) => transientShaper(x.slice(), { attackGain: p.attackGain, sustainGain: p.sustainGain, fs: sr }),
+	}
+	let r = 11, rnd = () => (r = (Math.imul(r, 1664525) + 1013904223) >>> 0) / 4294967296
+	let pick = s => s.type === 'enum' ? s.values[Math.floor(rnd() * s.values.length)] : s.type === 'bool' ? rnd() < 0.5 : Math.fround(s.min > 0 && rnd() < 0.5 ? s.min * (s.max / s.min) ** rnd() : s.min + (s.max - s.min) * rnd())
+	for (let [name, m] of Object.entries(ATOMS)) {
+		if (!KERNEL[name]) continue
+		let differ = 0, runs = 0, keyed = Array.isArray(m.channels?.inputs) && m.channels.inputs.length > 1
+		for (let [t, sampleRate] of [22050, 44100, 96000].entries()) {
+			let p = Object.fromEntries(Object.entries(m.params).map(([k, s]) => [k, t ? pick(s) : s.type === 'number' ? Math.fround(s.default) : s.default])), n = sampleRate >> 2
+			if ('link' in p) p.link = 0
+			let x = name === 'unlimit' ? [thuds(n), thuds(n, 1)] : [steps(n, 0, sampleRate), steps(n, 1, sampleRate)]
+			let L = typeof m.latency === 'function' ? m.latency({ sampleRate, params: paramsOf(m, p) }) : 0, want = x.map(c => KERNEL[name](c, p, sampleRate))
+			for (let block of [1, 100, 1024]) for (let key of keyed ? [undefined, []] : [undefined]) {
+				let y = atomRun(m, x, { params: p, block, sampleRate, key })
+				runs++
+				for (let c = 0; c < 2; c++) for (let i = 0; i + L < n; i++) if (!Object.is(y[c][i + L], want[c][i])) { differ++; break }
+			}
+		}
+		is(differ, 0, `${name}: ${runs} renders, 2 channels each, as the kernel's batch call`)
+	}
+})
+
+test('limiter manifest: a ceiling lowered mid-signal holds every sample that enters after it', () => {
+	let n = fs / 2, at = fs / 4, x = [sine(500, n, 0.9), sine(700, n, 0.9)], L = limiterAtom.latency({ sampleRate: fs, params: paramsOf(limiterAtom) })
+	for (let truePeak of [false, true]) {
+		let y = atomRun(limiterAtom, x, { params: { ceiling: -1, truePeak }, change: { at, params: { ceiling: -12 } } })
+		if (truePeak) L = limiterAtom.latency({ sampleRate: fs, params: paramsOf(limiterAtom, { truePeak }) })
+		ok(peak(y[0].subarray(L, at)) <= 10 ** (-1 / 20) + 1e-6 && peak(y[0].subarray(at, at + L)) > 10 ** (-12 / 20), `truePeak ${truePeak}: -1 dB until the change and through the line`)
+		ok(Math.max(peak(y[0].subarray(at + L)), peak(y[1].subarray(at + L))) <= 10 ** (-12 / 20) + 1e-6, `truePeak ${truePeak}: -12 dB from what entered after it`)
+	}
+})
+
+test('deesser manifest: declares its tail, the band\'s 1.5 ms past the delayed sample; a burst is 60 dB down within latency + tail', () => {
+	// as @audio/compile's validator measures it (tools/verify.js, tail): Gaussian noise (σ 0.15) for 0.25 s, then
+	// silence; from latency + tail on, every 64-frame window's RMS at most 1e-3 of the burst's. Broadband only turns the
+	// delayed input down: no tail
+	let r = 999, u = () => (r = (Math.imul(r, 1664525) + 1013904223) >>> 0) / 4294967296
+	for (let sampleRate of [44100, 96000]) for (let mode of ['split', 'band', 'broadband']) {
+		let params = paramsOf(deesserAtom, { mode }), T = deesserAtom.tail({ sampleRate, params }), L = deesserAtom.latency({ sampleRate, params })
+		is(T, mode === 'broadband' ? 0 : Math.round(0.0015 * sampleRate) / sampleRate, `${mode} at ${sampleRate} Hz: tail ${(T * 1000).toFixed(3)} ms`)
+		let B = sampleRate / 4, n = B + L + Math.ceil(T * sampleRate) + sampleRate / 4
+		let x = Float32Array.from({ length: n }, (_, i) => i < B ? 0.15 * Math.sqrt(-2 * Math.log(1 - u())) * Math.cos(2 * Math.PI * u()) : 0)
+		let y = atomRun(deesserAtom, [x], { params: { mode }, sampleRate })[0], floor = rmsOf(x, 0, B) * 1e-3, end = B + L + Math.ceil(T * sampleRate), loud = 0
+		for (let i = end; i + 64 <= n; i += 64) loud = Math.max(loud, rmsOf(y, i, i + 64))
+		ok(loud <= floor, `${mode} at ${sampleRate} Hz: ${db(loud / floor * 1e-3).toFixed(1)} dB under the burst from latency + tail on`)
+		if (T) ok(rmsOf(y, B + L, end) > floor, `${mode} at ${sampleRate} Hz: still sounding over the tail it declares`)
+	}
+})
+
+test('deesser: its detector\'s sections are @audio/biquad\'s highpass and lowpass, coefficient for coefficient; its band the windowed sincs', () => {
+	// set.k: the band's sections from 7 (two high-passes at its low edge lo, Q 0.5412 and 1.3066: 4th-order Butterworth)
+	// and the body's low-pass from 17 (Q 1/√2, at min(3500 Hz, lo)), b0 b1 b2 a1 a2 each; set.h the 2M + 1 taps, a direct
+	// computation of the band: Kaiser-windowed (β 6) sincs at hi less at lo, each scaled by its sum
+	let i0 = x => { let s = 1, t = 1; for (let k = 1; k < 32; k++) { t *= (x / 2 / k) ** 2; s += t } return s }, bad = 0, tuned = 0
+	for (let sr of [8000, 44100, 48000, 96000]) for (let mode of ['split', 'band', 'broadband']) for (let split of [1000, 3500, 7000, 16000]) for (let fc of [2000, 6500, 15000]) for (let Q of [0.3, 1.4, 10]) {
+		let set = deesserSet(sr), k = set.k, top = 0.45 * sr, bw = 2 * Math.asinh(1 / (2 * Q)) / Math.LN2
+		deesserBand(set, mode, Float64Array.of(split, fc, Q))
+		let lo = mode === 'band' ? Math.min(fc, top) * 2 ** (-bw / 2) : Math.min(split, top), hi = mode === 'band' ? Math.min(top, Math.min(fc, top) * 2 ** (bw / 2)) : top
+		let want = [highpass(lo, 0.5412, sr), highpass(lo, 1.3066, sr), lowpass(Math.min(3500, lo), Math.SQRT1_2, sr)]
+		want.forEach((c, j) => ['b0', 'b1', 'b2', 'a1', 'a2'].forEach((key, e) => { if (!Object.is(k[7 + 5 * j + e], c[key])) bad++ }))
+		let M = Math.round(0.0015 * sr), w = j => i0(6 * Math.sqrt(1 - (j / M) ** 2)) / i0(6), sinc = (f, j) => j ? Math.sin(2 * Math.PI * f / sr * j) / (Math.PI * j) : 2 * f / sr
+		let wide = hi >= 0.45 * sr, sl = 0, sh = 0
+		for (let j = -M; j <= M; j++) sl += sinc(lo, j) * w(j), sh += wide ? 0 : sinc(hi, j) * w(j)
+		for (let j = -M; j <= M; j++) if (!Object.is(set.h[j + M], (wide ? (j ? 0 : 1) : sinc(hi, j) * w(j) / sh) - sinc(lo, j) * w(j) / sl)) bad++
+		tuned++
+	}
+	is(bad, 0, `${tuned} tunings: 15 coefficients and the band's taps each, the same numbers`)
+})
+
+// the gain each sample of `x` took: out over in, the output `L` samples late, where the input is not near 0
+const gains = (x, y, L = 0) => Float64Array.from(x, (v, i) => Math.abs(v) > 1e-4 && i + L < y.length ? y[i + L] / v : NaN)
+
+test('manifests: link 1 gives every channel one gain; a side 12 dB down stays 12 dB down, sample for sample; link 0 lets it move', () => {
+	// The left the steps through every threshold, the right the same a quarter as loud (an exact float32 scaling): one gain
+	// on both makes the right's output a quarter of the left's at every sample, bit for bit (a gain on both rounds alike).
+	// Two channels of their own (200 and 250 Hz): their gains, out over in, the same within the output's float32 rounding
+	// (2 · 2^-24 of each). The limiter's ceiling is set under the left's peaks; the others' defaults cross both sides
+	let n = fs / 2, l = steps(n), x = [l, l.map(v => v / 4)], own = [steps(n), steps(n, 1)]
+	const BASE = { limiter: { ceiling: -12 } }
+	for (let name of ['compressor', 'expander', 'fet', 'gate', 'limiter', 'opto', 'vca']) {
+		let m = ATOMS[name], base = BASE[name] ?? {}, L = typeof m.latency === 'function' ? m.latency({ sampleRate: fs, params: paramsOf(m, base) }) : 0
+		let y1 = atomRun(m, x, { params: { ...base, link: 1 } }), y0 = atomRun(m, x, { params: base }), off = 0, moved = 0
+		for (let i = 0; i < n; i++) if (!Object.is(y1[1][i], y1[0][i] / 4)) off++
+		let g0 = gains(x[0], y0[0], L), g1 = gains(x[1], y0[1], L)
+		for (let i = 0; i < n; i++) if (Math.abs(db(g1[i]) - db(g0[i])) > 1) moved++
+		is(off, 0, `${name}, link 1: the quiet side a quarter of the loud one at every sample`)
+		ok(moved > 0, `${name}, link 0: each side by its own level, ${moved} samples where their gains part by over 1 dB`)
+		let y = atomRun(m, own, { params: { ...base, link: 1 } }), a = gains(own[0], y[0], L), b = gains(own[1], y[1], L), apart = 0
+		for (let i = 0; i < n; i++) if (Math.abs(a[i] - b[i]) > 2 * 2 ** -24 * (Math.abs(a[i]) + Math.abs(b[i]))) apart++
+		is(apart, 0, `${name}, link 1: two channels of their own take one gain curve`)
+	}
+})
+
+test('manifests: a key bus feeds the detector: a loud key turns the input down, a silent one closes a gate; a mono key serves every channel; a key bus with no channels is no key', () => {
+	// compressors and the ducker: an input at −40 dB, under every threshold, untouched alone, at least 6 dB down under a
+	// key at −1 dB. The gate and the expander: an input at −20 dB, over their thresholds, open alone, at least 30 dB down
+	// under a silent key (the gate's range −60 dB, the expander's 40 dB). Over the second half, the gain settled
+	let n = fs / 2, h = n / 2, loud = sine(2000, n, 0.9), silent = new Float32Array(n)
+	let change = (x, y) => Math.max(...x.map((c, j) => Math.abs(db(rmsOf(y[j], h) / rmsOf(c, h)))))
+	let down = (x, y) => Math.min(...x.map((c, j) => db(rmsOf(c, h) / rmsOf(y[j], h))))
+	for (let [names, x, key] of [[['compressor', 'ducker', 'fet', 'opto', 'vca'], [sine(300, n, 0.01), sine(450, n, 0.01)], loud], [['expander', 'gate'], [sine(300, n, 0.1), sine(450, n, 0.1)], silent]]) for (let name of names) {
+		let m = ATOMS[name], alone = atomRun(m, x), none = atomRun(m, x, { key: [] }), mono = atomRun(m, x, { key: [key] }), both = atomRun(m, x, { key: [key, key] })
+		ok(change(x, alone) < 0.05, `${name}: alone, ${change(x, alone).toFixed(3)} dB from its input`)
+		ok(down(x, mono) >= (key === loud ? 6 : 30), `${name}: keyed, ${down(x, mono).toFixed(1)} dB down`)
+		ok(none.every((c, j) => c.every((v, i) => Object.is(v, alone[j][i]))), `${name}: a key bus with no channels is no key, bit for bit`)
+		ok(both.every((c, j) => c.every((v, i) => Object.is(v, mono[j][i]))), `${name}: a mono key serves both channels, as the same key on each`)
+		// a list of buses takes @audio/compile's validator's channel check off them (it runs a bare 'any' only): 1, 6 and
+		// 10 channels here, alone and keyed by one, linked halfway, as many out and finite
+		for (let k of [1, 6, 10]) for (let keyBus of [undefined, [key]]) {
+			let y = atomRun(m, Array.from({ length: k }, (_, c) => x[c % 2]), { key: keyBus, params: { link: 0.5 } })
+			ok(y.length === k && y.every(c => c.every(Number.isFinite)), `${name}: ${k} channels${keyBus ? ', a mono key' : ''}`)
+		}
+	}
+})
+
+test('multiband: the bands add up to the crossovers\' allpass when nothing compresses; its magnitude is the input\'s', () => {
+	// A Linkwitz-Riley pair's two outputs add to an allpass, AP = LP + HP (Linkwitz & Riley 1976, JAES 24(1)), so three
+	// bands built as multiband.js builds them add to AP(low)·AP(high): computed here directly, @audio/eq-crossover's own
+	// pairs run in doubles through @audio/biquad's step and summed. Ratio 1 compresses nothing (gain 0 dB, the upward
+	// curve off). Within 1e-6 of the peak: a band is float32 after each of its sections (as it was), each rounding within
+	// 2^-24 of its value, at most 4 sections and 3 bands, and the output rounded once more, under 16 · 2^-24 ≈ 1e-6 with
+	// the filters' gains near 1. Then the impulse response's magnitude, 300 frequencies from 20 Hz to 0.45·fs: flat within
+	// 1e-5 dB. The bands as eq-crossover alone splits them summed to LP + HP·LP + HP: 0.12 dB down at 1.5 kHz with
+	// crossovers at 200 and 2000 Hz, 2.5 dB at 1000 and 1000. Then the kernel at every order it takes (LR2, LR4, LR8) and
+	// 2 to 5 bands: the bands add to the product of every crossover's allpass, within (S·B + 1)·2^-24·√2 of the peak, S
+	// the most sections a band runs, B the bands (each rounding of a value a Butterworth section of Q 1.31 may lift 3 dB)
+	let ap = (x, f, sr, order = 4) => {
+		let [lo, hi] = crossover([f], order, sr), a = Float64Array.from(x), b = Float64Array.from(x)
+		for (let s of lo) { let z = state(); for (let i = 0; i < a.length; i++) a[i] = step(s, z, a[i]) }
+		for (let s of hi) { let z = state(); for (let i = 0; i < b.length; i++) b[i] = step(s, z, b[i]) }
+		return a.map((v, i) => v + b[i])
+	}
+	let mag = (h, f, sr) => { let re = 0, im = 0, w = 2 * Math.PI * f / sr; for (let i = 0; i < h.length; i++) { re += h[i] * Math.cos(w * i); im -= h[i] * Math.sin(w * i) } return 10 * Math.log10(re * re + im * im) }
+	let r = 9, u = () => (r = (Math.imul(r, 1664525) + 1013904223) >>> 0) / 2147483648 - 1
+	for (let sr of [44100, 96000]) for (let [lo, hi] of [[200, 2000], [40, 1000], [1000, 1000], [500, 1500], [1000, 12000]]) {
+		let n = 8192, x = Float32Array.from({ length: n }, (_, i) => i < n / 2 ? 0.5 * u() : 0), ref = ap(ap(x, lo, sr), hi, sr), top = peak(ref)
+		let k = multiband(x.slice(), { fs: sr, freqs: [lo, hi], bands: { ratio: 1 } }), a = atomRun(multibandAtom, [x], { params: { low: lo, high: hi, ratio: 1 }, sampleRate: sr })[0]
+		let dk = 0, da = 0
+		for (let i = 0; i < n; i++) { dk = Math.max(dk, Math.abs(k[i] - ref[i])); da = Math.max(da, Math.abs(a[i] - ref[i])) }
+		ok(dk <= 1e-6 * top && da <= 1e-6 * top, `${lo} and ${hi} Hz at ${sr}: kernel ${(dk / top).toExponential(1)}, manifest ${(da / top).toExponential(1)} of the peak from AP·AP`)
+		let imp = new Float32Array(16384); imp[0] = 1
+		let hr = multiband(imp, { fs: sr, freqs: [lo, hi], bands: { ratio: 1 } }), worst = 0
+		for (let j = 0; j < 300; j++) { let v = mag(hr, 20 * (0.45 * sr / 20) ** (j / 299), sr); if (Math.abs(v) > Math.abs(worst)) worst = v }
+		ok(Math.abs(worst) <= 1e-5, `${lo} and ${hi} Hz at ${sr}: magnitude flat within ${Math.abs(worst).toExponential(1)} dB`)
+	}
+	for (let sr of [44100, 96000]) for (let order of [2, 4, 8]) for (let freqs of [[700], [150, 3000], [150, 700, 3000], [100, 400, 1600, 6400]]) {
+		let n = 8192, x = Float32Array.from({ length: n }, (_, i) => i < n / 2 ? 0.5 * u() : 0), ref = Float64Array.from(x)
+		for (let f of freqs) ref = ap(ref, f, sr, order)
+		let top = peak(ref), k = multiband(x.slice(), { fs: sr, freqs, order, bands: { ratio: 1 } }), dk = 0
+		for (let i = 0; i < n; i++) dk = Math.max(dk, Math.abs(k[i] - ref[i]))
+		let [lp, hp] = crossover([1000], order, sr), B = freqs.length + 1, S = 0
+		for (let b = 0; b < B; b++) S = Math.max(S, b * hp.length + (b < B - 1 ? lp.length : 0) + (B - 2 - b > 0 ? (B - 2 - b) * lp.length / 2 : 0))
+		ok(dk <= (S * B + 1) * 2 ** -24 * Math.SQRT2 * top, `LR${order}, ${B} bands at ${sr}: ${(dk / top / 2 ** -24).toFixed(1)}·2^-24 of the peak from the allpasses' product (≤ ${((S * B + 1) * Math.SQRT2).toFixed(0)})`)
+		let imp = new Float32Array(16384); imp[0] = 1
+		let hr = multiband(imp, { fs: sr, freqs, order, bands: { ratio: 1 } }), worst = 0
+		for (let j = 0; j < 300; j++) { let v = mag(hr, 20 * (0.45 * sr / 20) ** (j / 299), sr); if (Math.abs(v) > Math.abs(worst)) worst = v }
+		ok(Math.abs(worst) <= 1e-5, `LR${order}, ${B} bands at ${sr}: magnitude flat within ${Math.abs(worst).toExponential(1)} dB`)
+	}
+})
+
+test('multiband: its crossovers in place (split3) are @audio/eq-crossover\'s, coefficient for coefficient', () => {
+	// split3 writes the sections the manifest recomputes when low or high moves without allocating: they must be the
+	// numbers multiband() takes from eq-crossover at order 4 (LR4: its Butterworth section twice), the allpass from the
+	// low-pass section's denominator; cutoffs at 0 and from Nyquist up held at silence or a pass, as eq-crossover holds them
+	let co = new Float64Array(55), bad = 0, tuned = 0, r = 17, u = () => (r = (Math.imul(r, 1664525) + 1013904223) >>> 0) / 4294967296
+	let ap = s => s.b1 === 0 && s.b2 === 0 && s.a1 === 0 && s.a2 === 0 ? { b0: 1, b1: 0, b2: 0, a1: 0, a2: 0 } : { b0: s.a2, b1: s.a1, b2: 1, a1: s.a1, a2: s.a2 }
+	for (let sr of [8000, 22050, 44100, 48000, 96000, 192000]) for (let i = 0; i < 200; i++) {
+		let lo = i === 0 ? 0 : i === 1 ? sr / 2 : sr * u() ** 3, hi = i === 2 ? sr : sr * u() ** 2
+		split3(co, Float64Array.of(lo, hi, sr))
+		let [L1, H1] = crossover([lo], 4, sr), [L2, H2] = crossover([hi], 4, sr)
+		;[L1[0], L1[1], ap(L2[0]), H1[0], H1[1], L2[0], L2[1], H1[0], H1[1], H2[0], H2[1]].forEach((s, j) => ['b0', 'b1', 'b2', 'a1', 'a2'].forEach((key, e) => { if (!Object.is(co[5 * j + e], s[key])) bad++ }))
+		tuned++
+	}
+	is(bad, 0, `${tuned} tunings, 55 coefficients each`)
+})
+
+test('multiband manifest: declares its tail from its low crossover; a burst is 60 dB under the input within it', () => {
+	// as @audio/compile's validator measures a tail (tools/verify.js): Gaussian noise (σ 0.15) for 0.25 s, then silence;
+	// from the declared tail on, every 64-frame window's RMS at most 1e-3 of the burst's. The slowest crossover (40 Hz),
+	// alone and with all the gain the bands may put on the ring (makeup 24 dB, the upward lift 12 dB times depth 2); at
+	// the defaults the declaration is no gross overstatement: the ring is still over that floor past a fifth of it. It is a
+	// bound from the poles, and the ring noise leaves starts under it: measured, at most 0.80 of it (8 seeds, 6 settings
+	// from these to low 100 and high 5000 Hz, 44.1 and 96 kHz)
+	let r = 999, u = () => (r = (Math.imul(r, 1664525) + 1013904223) >>> 0) / 4294967296
+	for (let sampleRate of [44100, 96000]) for (let set of [{}, { low: 40 }, { low: 40, makeup: 24, upRatio: 20, depth: 2 }, { low: 40, makeup: 24, upRatio: 20, depth: 2, threshold: -60, ratio: 20, release: 20 }]) {
+		let T = multibandAtom.tail({ sampleRate, params: paramsOf(multibandAtom, set) }), B = sampleRate / 4, n = B + Math.ceil(T * sampleRate) + sampleRate / 4
+		let x = Float32Array.from({ length: n }, (_, i) => i < B ? 0.15 * Math.sqrt(-2 * Math.log(1 - u())) * Math.cos(2 * Math.PI * u()) : 0)
+		let y = atomRun(multibandAtom, [x], { params: set, sampleRate })[0], floor = rmsOf(x, 0, B) * 1e-3, end = B + Math.ceil(T * sampleRate), loud = 0
+		for (let i = end; i + 64 <= n; i += 64) loud = Math.max(loud, rmsOf(y, i, i + 64))
+		ok(loud <= floor, `${JSON.stringify(set)} at ${sampleRate}: tail ${(T * 1000).toFixed(1)} ms, then ${db(loud / floor * 1e-3).toFixed(1)} dB under the burst`)
+		let late = 0
+		for (let i = B + Math.round(0.2 * T * sampleRate); i + 64 <= end; i += 64) late = Math.max(late, rmsOf(y, i, i + 64))
+		if (!set.makeup) ok(late > floor, `${JSON.stringify(set)} at ${sampleRate}: still ringing past a fifth of it`)
+	}
+})
+
+test('softclip manifest: streams; oversampled, it is the whole call on the signal padded with silence, `latency` samples late', () => {
+	// The whole call reads its kernels over the signal alone and divides one its edges cut short by what is left of it;
+	// with silence past the kernels' reach on either side it reads every kernel whole, as the stream does from its first
+	// sample. Bit for bit at N = 1, 2, 4, 8; at 3, 5, 6, 7 the whole call's resampler finds each point's phase by
+	// stepping 1/N rounded to a double, which drifts off the stream's by a few ulps over seconds: one float32 step at most
+	// (2^-24 for an output under 1). The whole call on the signal as it is differs only within the kernels' reach of an
+	// end: latency + 16 samples
+	let r = 3, u = () => (r = (Math.imul(r, 1664525) + 1013904223) >>> 0) / 4294967296
+	for (let N = 1; N <= 8; N++) for (let [t, curve] of ['tanh', 'atan', 'cubic', 'sin', 'hard'].entries()) {
+		let sampleRate = [22050, 44100, 48000, 96000, 44100][t], n = 3000, P = 64, drive = Math.fround(0.1 + 19.9 * u() ** 2), ceiling = Math.fround(0.05 + 0.95 * u())
+		let p = { curve, drive, ceiling, oversample: N }, L = softclipAtom.latency({ sampleRate, params: paramsOf(softclipAtom, p) })
+		let x = Float32Array.from({ length: n }, (_, i) => 0.9 * Math.sin(2 * Math.PI * 3000 * i / sampleRate) * Math.sin(i / 400) + 0.2 * (u() - 0.5))
+		let pad = new Float32Array(n + 2 * P), xin = new Float32Array(n + L)
+		pad.set(x, P); xin.set(x)
+		let want = softclip(pad, { ...p, fs: sampleRate }).subarray(P, P + n), bare = softclip(x, { ...p, fs: sampleRate })
+		for (let block of [1, 37, 128]) {
+			let y = atomRun(softclipAtom, [xin], { params: p, block, sampleRate })[0].subarray(L), worst = 0, edge = 0
+			for (let i = 0; i < n; i++) { worst = Math.max(worst, Math.abs(y[i] - want[i])); if (y[i] !== bare[i]) edge = Math.max(edge, Math.min(i, n - 1 - i) + 1) }
+			if (N & (N - 1)) ok(worst <= 2 ** -24, `oversample ${N}, ${curve}, blocks of ${block}: within ${worst.toExponential(1)} of the padded whole call`)
+			else ok(y.every((v, i) => Object.is(v, want[i])), `oversample ${N}, ${curve}, blocks of ${block}: the padded whole call, bit for bit`)
+			ok(edge <= (N > 1 ? L + 16 : 0), `oversample ${N}, ${curve}: the whole call as it is parts only within ${edge} samples of an end`)
+		}
+	}
+})
+
+
+// --- live values, moved by a host (contract 1.0: Parameters, `smoothing`; What a host owes, 3) ---
+
+// A host as contract 1.0 asks one to be: `params` from the start; at frame `at` the values `to`, each with `smoothing`
+// reached by a linear ramp of that many seconds from the value in force, in its own unit (`ramp: false`: a jump); the
+// call split at `at`, no call longer than 32 frames while a value moves, each call handed the values at its first frame
+// as float32. audio's toStream and its own host, and @audio/compile-wam, hand a call the same. Otherwise calls of
+// `block` frames, or of what `cut()` gives (1 to `block`)
+function hosted (m, x, { params = {}, at = Infinity, to = {}, block = 128, cut, ramp = true, sampleRate = fs } = {}) {
+	let n = x[0].length, live = paramsOf(m, params), out = x.map(() => new Float32Array(n)), len = {}
+	let proc = m({ sampleRate, maxBlockSize: block, maxChannels: x.length, params: paramsOf(m, params), buffers: {} })
+	for (let p in to) len[p] = ramp && m.params[p].smoothing > 0 ? Math.max(1, Math.round(m.params[p].smoothing * sampleRate)) : 0
+	for (let i = 0, k; i < n; i += k) {
+		k = Math.min(n - i, cut ? cut() : block)
+		if (i < at && i + k > at) k = at - i
+		for (let p in to) {
+			let s = m.params[p], d = i - at, from = params[p] ?? s.default
+			if (d < 0) continue
+			if (s.type !== 'number') live[p] = to[p]
+			else if (d < len[p]) { live[p] = Float32Array.of(to[p] + (from - to[p]) * (1 - d / len[p])); k = Math.min(k, 32, at + len[p] - i) }
+			else live[p] = Float32Array.of(to[p])
+		}
+		proc([x.map(c => c.subarray(i, i + k))], [out.map(c => c.subarray(i, i + k))], live)
+	}
+	return out
+}
+// the largest |second difference| of y over [a, b)
+const d2max = (y, a, b) => { let m = 0; for (let i = Math.max(1, a); i < Math.min(y.length - 1, b); i++) m = Math.max(m, Math.abs(y[i + 1] - 2 * y[i] + y[i - 1])); return m }
+const peakOf = (y, a, b) => { let m = 0; for (let i = a; i < b; i++) m = Math.max(m, Math.abs(y[i])); return m }
+// the largest one-sample step, in dB, of the gain the change adds: 20·log10|b/a|, where |a| is over 1e-3 of its peak
+function gainStep (a, b, w0, w1) {
+	let m = 0, prev = NaN, floor = 1e-3 * peakOf(a, w0, w1)
+	for (let i = w0; i < w1; i++) {
+		if (Math.abs(a[i]) < floor) { prev = NaN; continue }
+		let g = 20 * Math.log10(Math.abs(b[i] / a[i]))
+		if (prev === prev) m = Math.max(m, Math.abs(g - prev))
+		prev = g
+	}
+	return m
+}
+
+test('manifests: a value that scales the signal is glided: a host\'s ramp of it is one line of the gain, the same whatever the calls, the value itself after it', () => {
+	// A host ramps a jump over the param's `smoothing` (0.02 s: N = 882 frames) in calls of 32 frames; the change on the
+	// 128-frame grid and inside a call. The measure (the review's): the largest |second difference| from 4 samples before
+	// the change to 4096 after, over the largest of the unchanged render's there and the changed one's 2048 before it.
+	// Derived: a gain moved from 1 to r times by a straight line over N samples has two corners. For y = m·a (m the gain's
+	// ramp, a the render unchanged), d2(m·a)[n] = m[n]·d2a[n] + (m[n+1] − m[n])·a[n+1] + (m[n−1] − m[n])·a[n−1]: away from
+	// a corner the slope terms nearly cancel, at one only one is left, so |d2| ≤ the steady renders' larger d2 + slope ×
+	// max|a|. A straight line of a linear gain (softclip's ceiling and drive, the transient shaper's gains: 'lin') has the
+	// slope |r − 1|/N. A host ramps a dB value in dB, and the dB gain of a threshold, a range or a curve's point moves with
+	// it ('dB'): the gain is an exponential whose steepest slope is max(1, r)·|ln r|/N, max(1, r)·|ln r|/|r − 1| times the
+	// line's (1.85 for +12 dB). Margin 1.1: the steady renders' maxima are over a window a follower's ripple moves.
+	// No one-sample step of the gain over 0.1 dB: a host's ramp moves 12 to 40 dB over 882 frames, 0.014 to 0.045 dB a
+	// frame. Before the glide each was one step of the whole change (12 to 26.5 dB); declaring `smoothing` alone left
+	// the host's 32-frame stairs (0.44 to 1.5 dB)
+	let n = fs * 3 / 4, N = Math.round(0.02 * fs), r = 5, u = () => (r = (Math.imul(r, 1664525) + 1013904223) >>> 0) / 4294967296
+	let tone = (f, A) => Float32Array.from({ length: n }, (_, i) => A * Math.sin(2 * Math.PI * f * i / fs))
+	let square = (f, A) => Float32Array.from({ length: n }, (_, i) => Math.sin(2 * Math.PI * f * i / fs) < 0 ? -A : A)
+	const ROWS = [
+		// processor, settings, signal, the change, the gain's law, the call sizes compared
+		['fet', {}, f => tone(f, 0.5), { makeup: 12 }, 'dB', true],
+		['multiband', {}, f => tone(f, 0.5), { makeup: 12 }, 'dB'],
+		['compand', {}, f => tone(f, 0.7), { out3: -30 }, 'dB', true],
+		['expander', {}, f => tone(f, 0.003), { threshold: -20 }, 'dB', true],
+		['ducker', { threshold: -40 }, f => tone(f, 0.5), { range: -6 }, 'dB'],
+		['gate', {}, f => tone(f, 0.003), { range: -20 }, 'dB', true],
+		['unlimit', { ceiling: -6 }, f => square(f, 0.9), { ceiling: -18 }, 'dB'],
+		['softclip', {}, f => tone(f, 0.5), { ceiling: 0.25 }, 'lin'],
+		['softclip', {}, f => tone(f, 0.01), { drive: 4 }, 'lin', true],
+		['transientShaper', {}, f => tone(f, 0.5), { sustainGain: 1 }, 'lin', true],
+	]
+	for (let [name, base, sig, to, law, sizes] of ROWS) for (let f of [220, 1000]) for (let at of [22016, 22063]) {
+		let m = ATOMS[name], x = [sig(f)], k = Object.keys(to)[0], label = `${name}.${k} → ${to[k]}, ${f} Hz, at ${at}`
+		is(m.params[k].smoothing, 0.02, `${label}: smoothed`)
+		let a = hosted(m, x, { params: base })[0], b = hosted(m, x, { params: base, at, to })[0], c = hosted(m, x, { params: { ...base, ...to } })[0]
+		let w0 = at - 4, w1 = at + 4096, ref = Math.max(d2max(a, w0, w1), d2max(b, at - 2048, at - 4)), measure = d2max(b, w0, w1) / ref
+		let steady = Math.max(d2max(a, w0, w1), d2max(c, w0, w1)) / ref, g = rmsOf(c, at + 8192) / rmsOf(a, at + 8192)
+		let slope = law === 'dB' ? Math.max(1, g) * Math.abs(Math.log(g)) : Math.abs(g - 1), bound = 1.1 * (steady + slope * peakOf(a, w0, w1) / (N * ref))
+		ok(measure <= bound, `${label}: ×${measure.toFixed(2)}, derived ≤ ×${bound.toFixed(2)} (the gain ×${g.toFixed(3)})`)
+		let step = gainStep(a, b, w0, w1)
+		ok(step <= 0.1, `${label}: the gain moves ${step.toFixed(4)} dB a sample at most`)
+		// the value itself after the move (the glide ends 32 frames after the ramp): bit for bit the render at the new
+		// value; the gate's once its gain smoother has reached the new closed gain (100 ms: 1000 times its 0.1 ms attack)
+		let from = at + N + 32 + (name === 'gate' ? 4410 : 0), off = 0
+		for (let i = from; i < n; i++) if (!Object.is(b[i], c[i])) off++
+		is(off, 0, `${label}: from ${from - at} frames after the change, the render at ${to[k]}`)
+		if (!sizes || at !== 22063 || f !== 220) continue
+		// the same samples whatever the host's calls: blocks of 1, 32, 128 and random cuts (32 frames at most while it
+		// moves). The glide reads the host's line 32 frames late from the values at the calls' first frames; 1-frame calls
+		// give every frame's float32 value, longer ones float32 values 32 frames apart, joined in doubles: the two lines
+		// part by one float32 ulp of the value at most (2^-23 of its largest), a gain's relative change of that times
+		// ln10/20 a dB ('dB'), or that ('lin'), and each render rounds once to float32: within Ymax·(rel + 2^-23)
+		let ys = [1, 32, 128].map(block => hosted(m, x, { params: base, at, to, block })[0]).concat([hosted(m, x, { params: base, at, to, block: 128, cut: () => 1 + Math.floor(u() * 128) })[0]])
+		let V = Math.max(Math.abs(base[k] ?? m.params[k].default), Math.abs(to[k])), rel = law === 'dB' ? 2 ** -23 * V * Math.LN10 / 20 : 2 ** -23
+		let Y = peakOf(ys[0], 0, n), tol = Y * (rel + 2 ** -23)
+		for (let j = 1; j < ys.length; j++) {
+			let far = 0
+			for (let i = 0; i < n; i++) far = Math.max(far, Math.abs(ys[j][i] - ys[0][i]))
+			ok(far <= tol, `${label}: ${['', 'blocks of 32', 'blocks of 128', 'random calls'][j]}: within ${far.toExponential(2)} of 1-frame calls (≤ ${tol.toExponential(2)})`)
+		}
+	}
+	// behind a follower: opto's threshold −20 → −40 dB on a tone at −9.0 dB RMS moves the static curve's target (ratio 3,
+	// knee 10 dB) from −7.33 to −20.67 dB; the gain reduction follows it at the attack, so no sample moves the gain more
+	// than (1 − e^(−1/(τ·fs)))·|Δtarget|, τ = 10 ms: 0.030 dB. Margin 1.1: the RMS window (256 samples, 1.3 cycles of
+	// 220 Hz) ripples the level, and the target with it. A jump, as threshold has no smoothing: it needs none
+	let L = db(0.5 / Math.SQRT2), dt = Math.abs(compressorGain(L, -40, 3, 10) - compressorGain(L, -20, 3, 10)), most = (1 - Math.exp(-1 / (0.01 * fs))) * dt
+	for (let f of [220, 1000]) {
+		let x = [tone(f, 0.5)], a = hosted(optoAtom, x)[0], b = hosted(optoAtom, x, { at: 22016, to: { threshold: -40 } })[0], step = gainStep(a, b, 22012, 26112)
+		ok(step > 0.5 * most && step <= 1.1 * most, `opto.threshold → −40, ${f} Hz: the gain moves ${step.toFixed(4)} dB a sample, its attack lets ${most.toFixed(4)}`)
+	}
+})
+
+test('manifests: a second ramp plays its own line: no slot of an earlier one is read, whatever call follows a ramp or opens the next', () => {
+	// A host splits a block where a value jumps and calls with 32 frames at most while it moves (contract 1.0, What a
+	// host owes, 3), so a ramp's first call is as short as what is left of the block, and the call after a ramp as long
+	// as the block: CLAP's blocks and audio's chunks are any length. Here makeup ramps 0 → 12 dB, is held through a call
+	// of 100 frames and blocks of 128, then ramps back from a frame 7 before a block's end. util.js glide plays the line
+	// through the values at the calls' first frames 32 frames late: from one call's value to the next's straight, or after
+	// a call over 32 frames held to 32 frames before the next and straight from there. makeup is a pure gain in these
+	// five (no detector reads it: the gain is db2lin(reduction + makeup)), so 20·log10(y/y at 0 dB) is the line itself,
+	// within the two float32 roundings of y, 20/ln10·2·2^-24 dB, and the double arithmetic's, under 2^-40. Read from
+	// slots the first ramp left, it was off by 0.37 dB
+	let N = Math.round(0.02 * fs), calls = []
+	let hold = (frames, v) => { for (let d = 0; d < frames;) { let k = Math.min(128, frames - d); calls.push([k, v]); d += k } }
+	let ramp = (from, to, first) => { for (let d = 0, k = first; d < N; d += k, k = 32) { k = Math.min(k, N - d); calls.push([k, Math.fround(to + (from - to) * (1 - d / N))]) } }
+	hold(1024, 0); ramp(0, 12, 32); calls.push([100, 12]); hold(2000, 12); ramp(12, 0, 7); hold(2000, 0)
+	let n = calls.reduce((s, c) => s + c[0], 0), starts = [], x = sine(1000, n, 0.5)
+	for (let c = 0, at = 0; c < calls.length; at += calls[c++][0]) starts.push(at)
+	let line = t => {
+		let c = 0
+		while (c + 1 < calls.length && starts[c + 1] <= t) c++
+		if (t < 0 || c + 1 === calls.length) return calls[c][1]
+		let [f, v] = calls[c], w = calls[c + 1][1], e = starts[c + 1], L = f < 32 ? f : 32
+		return t < e - L ? v : v + (w - v) * (t - (e - L)) / L
+	}
+	for (let name of ['compressor', 'fet', 'opto', 'varimu', 'vca']) {
+		let m = ATOMS[name], run = moved => {
+			let proc = m({ sampleRate: fs, maxBlockSize: 128, maxChannels: 1, params: paramsOf(m), buffers: {} }), live = paramsOf(m), y = new Float32Array(n)
+			for (let c = 0; c < calls.length; c++) { live.makeup = Float32Array.of(moved ? calls[c][1] : 0); proc([[x.subarray(starts[c], starts[c] + calls[c][0])]], [[y.subarray(starts[c], starts[c] + calls[c][0])]], live) }
+			return y
+		}
+		let still = run(false), y = run(true), off = 0, tol = 20 / Math.LN10 * 2 * 2 ** -24 + 2 ** -40
+		for (let i = 0; i < n; i++) if (still[i]) off = Math.max(off, Math.abs(20 * Math.log10(Math.abs(y[i] / still[i])) - line(i - 32)))
+		ok(off <= tol, `${name}.makeup, two ramps: the gain off its line by ${off.toExponential(2)} dB at most (≤ ${tol.toExponential(2)})`)
+	}
+})
+
+test('multiband manifest: low and high are smoothed: a host retunes the crossovers along its ramp, a small step a call', () => {
+	// A running IIR whose coefficients change leaves a transient as large as the change, to first order. A host's ramp
+	// over N = 882 frames makes ⌈N/32⌉ changes in place of one; the largest is `share` of the whole (computed here from
+	// split3 at the values the calls bring), and each rings for the slowest pole's decay, τ = −1/ln r samples (r = √a2 of
+	// the lowest crossover's section, as tail() reads it), so the transients of calls 32 frames apart add up to at most
+	// 1/(1 − e^(−32/τ)) of one. The ramped render's measure over 1 is then at most the jump's × share × that overlap.
+	// A jump of `low` 200 → 1000 Hz measured ×419 at 220 Hz (the review), a ramp of it ×14
+	let n = fs * 3 / 4, at = 22016, N = Math.round(0.02 * fs)
+	for (let [k, from, to] of [['low', 200, 1000], ['high', 2000, 8000]]) for (let f of [220, 1000]) {
+		let x = [Float32Array.from({ length: n }, (_, i) => 0.5 * Math.sin(2 * Math.PI * f * i / fs))], label = `${k} ${from} → ${to} Hz, ${f} Hz`
+		is(multibandAtom.params[k].smoothing, 0.02, `${label}: smoothed`)
+		let a = hosted(multibandAtom, x)[0], ref = d2max(a, at - 4, at + 4096)
+		let measure = y => Math.max(d2max(y, at - 4, at + 4096) / ref, 1)
+		let jump = measure(hosted(multibandAtom, x, { at, to: { [k]: to }, ramp: false })[0]), ramped = measure(hosted(multibandAtom, x, { at, to: { [k]: to } })[0])
+		let co = v => split3(new Float64Array(55), Float64Array.of(k === 'low' ? Math.fround(v) : 200, k === 'high' ? Math.fround(v) : 2000, fs))
+		let S = Math.ceil(N / 32), first = co(from), last = co(to), whole = 0, most = 0
+		for (let e = 0; e < 55; e++) whole = Math.max(whole, Math.abs(last[e] - first[e]))
+		for (let s = 1, was = first; s <= S; s++) {
+			let now = co(to + (from - to) * (1 - Math.min(N, 32 * s) / N))
+			for (let e = 0; e < 55; e++) most = Math.max(most, Math.abs(now[e] - was[e]))
+			was = now
+		}
+		let tau = -1 / Math.log(Math.sqrt(co(200)[4])), bound = 1 + (jump - 1) * (most / whole) / (1 - Math.exp(-32 / tau))
+		ok(ramped <= bound, `${label}: a jump ×${jump.toFixed(1)}, the ramp ×${ramped.toFixed(1)}, derived ≤ ×${bound.toFixed(1)}`)
+	}
+})
+
+test('manifests: each live number is glided, behind a follower, a filter\'s retune or a count; the glided ones smoothed over 20 ms', () => {
+	// glided: it scales the signal with nothing behind it, so its jump was a step of the gain (the test above); behind a
+	// follower: its change reaches the gain through a smoother whose state is kept (attack, release, a gain reduction's
+	// smoother, the limiter's line); a retune: a filter's coefficients, its state kept; a count: whole samples. One time
+	// for the family's glided values, 20 ms: makeup's 36 dB (−12 to 24) then moves at most 36/882 = 0.041 dB a sample at
+	// 44.1 kHz and 0.082 at 22.05 kHz; the widest, the 90 dB of compand's output levels and of the gate's, the ducker's
+	// and the expander's range, 0.10 and 0.20, a straight ramp; and it is the smoothing of the effect family's glided
+	// delay reads. The leveler takes the whole take in one call: none moves
+	const CLASS = {
+		glided: { compand: 'out0 out1 out2 out3', compressor: 'makeup', ducker: 'threshold ratio knee range', expander: 'threshold ratio knee range link', fet: 'makeup', gate: 'range', multiband: 'threshold ratio upThreshold upRatio depth makeup', opto: 'makeup', softclip: 'drive ceiling', transientShaper: 'attackGain sustainGain', unlimit: 'ceiling', varimu: 'makeup', vca: 'makeup' },
+		follower: { compand: 'attack release', compressor: 'threshold ratio knee upThreshold upRatio upKnee upRange attack release link', deesser: 'threshold ratio range knee attack release', ducker: 'attack release', expander: 'attack release', fet: 'threshold ratio knee attack release link', gate: 'threshold closeThreshold attack release link', limiter: 'ceiling release link', multiband: 'attack release', opto: 'threshold ratio knee attack link', unlimit: 'amount drive crestTarget fastAttack fastRelease slowAttack slowRelease', varimu: 'threshold knee attack release', vca: 'threshold ratio knee attack release link' },
+		retune: { deesser: 'split fc Q', multiband: 'low high' },
+		count: { gate: 'hold' },
+	}
+	is(levelerAtom.streaming, false, 'leveler: the whole take in one call')
+	for (let [name, m] of Object.entries(ATOMS)) for (let [k, s] of Object.entries(m.params)) {
+		if (s.type !== 'number' || restart(s)) continue
+		let in_ = Object.keys(CLASS).filter(c => CLASS[c][name]?.split(' ').includes(k))
+		is(in_.length, 1, `${name}.${k}: in one class (${in_.join(', ') || 'none'})`)
+		if (in_[0] === 'glided' || name === 'multiband' && in_[0] === 'retune') is(s.smoothing, 0.02, `${name}.${k}: smoothed over 20 ms`)
+	}
+})
+
+test('manifests: a block allocates nothing, at any setting, moving or held', () => {
+	// measured as @audio/compile's validator measures it (tools/verify.js, alloc): a child Node with a 1 MB young
+	// generation, process() called directly with buffers made once, 2^17 warm blocks of 8 frames at 48 kHz, stereo, and no
+	// collection allowed. Each instance (and one per value of a restart param: the gate's and the limiter's lookahead
+	// lines, the true-peak reader) warmed on silence (an idle plugin), then on thuds through every setting (the defaults,
+	// each number a quarter and two thirds up its range off any integer, each enum and bool value), then held at each and
+	// moved between two each call (every coefficient recomputed every call); a processor with a key bus fed a key, then
+	// held at each setting with a key bus that carries no channels. Moved between two settings each call, every glided
+	// value moves every call (util.js glide: its ring, the line read 32 frames late, a dB value's gain per sample)
+	let code = `
+		import { PerformanceObserver } from 'node:perf_hooks'
+		let out = {}
+		for (let [name, builds] of ${JSON.stringify(Object.entries({ compand: [{}], compressor: [{}], deesser: [{}], ducker: [{}], expander: [{}], fet: [{}], gate: [{}, { lookahead: 5 }], limiter: [{}, { truePeak: true }], multiband: [{}], opto: [{}], softclip: [{}, { oversample: 3 }, { oversample: 8 }], 'transient-shaper': [{}], unlimit: [{}], varimu: [{}], vca: [{}] }))}) {
+			let m = Object.values(await import('@audio/dynamics-' + name + '/audio')).find(v => typeof v === 'function' && v.params), specs = Object.entries(m.params)
+			let num = (s, f) => Float32Array.of(Math.min(s.max, s.min + (s.max - s.min) * f + (s.max - s.min > 1 ? 0.37 : 0)))
+			let base = f => Object.fromEntries(specs.map(([k, s]) => [k, s.type === 'number' ? (f == null ? Float32Array.of(s.default) : num(s, f)) : s.default]))
+			let sets = [base(), base(0.25), base(0.66)]
+			for (let [k, s] of specs) if (s.restart !== true && s.type !== 'number') for (let v of s.type === 'bool' ? [true, false] : s.values) { let p = base(0.25); p[k] = v; sets.push(p) }
+			let u = 3, n = 48000, B = n / 8, buses = Array.isArray(m.channels?.inputs) ? m.channels.inputs.length : 1
+			let thuds = () => Float32Array.from({ length: n }, (_, i) => { let t = (i % 4800) / 48000; return (0.02 + 0.9 * Math.exp(-t * 40)) * Math.sin(2 * Math.PI * 90 * i / 48000 + Math.sin(i)) + 0.01 * ((u = (Math.imul(u, 1664525) + 1013904223) >>> 0) / 2147483648 - 1) })
+			let views = src => Array.from({ length: B }, (_, k) => Array.from({ length: buses }, () => src.map(c => c.subarray(k * 8, k * 8 + 8))))
+			let loud = views([thuds(), thuds()]), quiet = views([new Float32Array(n), new Float32Array(n)]), O = [[new Float32Array(8), new Float32Array(8)]]
+			let bare = buses > 1 ? loud.map(b => [b[0], []]) : null
+			let worst = 0
+			for (let b of builds) {
+				let fix = p => { for (let k in b) p[k] = typeof b[k] === 'number' ? Float32Array.of(b[k]) : b[k]; return p }
+				sets.forEach(fix)
+				let proc = m({ sampleRate: 48000, maxBlockSize: 128, maxChannels: 2, params: sets[0], buffers: {} })
+				let run = (ins, k, P, Q = P) => { for (let i = 0; i < k; i++) proc(ins[i % B], O, i & 1 ? Q : P) }
+				run(quiet, 1 << 15, sets[0])
+				for (let r = 0; r < 2; r++) for (let P of sets) run(loud, 1 << 12, P, sets[1])
+				for (let [ins, P, Q] of [...sets.map(P => [loud, P, P]), [loud, sets[1], sets[2]], ...bare ? sets.map(P => [bare, P, P]) : []]) {
+					run(ins, B, P, Q)
+					globalThis.gc()
+					let gcs = 0, obs = new PerformanceObserver(l => { gcs += l.getEntries().length })
+					obs.observe({ entryTypes: ['gc'] })
+					run(ins, 1 << 17, P, Q)
+					await new Promise(r => setTimeout(r, 10))
+					obs.disconnect()
+					worst = Math.max(worst, gcs)
+				}
+			}
+			out[name] = worst
+		}
+		process.stdout.write(JSON.stringify(out))`
+	let res = JSON.parse(execFileSync(process.execPath, ['--max-semi-space-size=1', '--expose-gc', '--no-concurrent-recompilation', '--input-type=module', '-e', code], { cwd: new URL('.', import.meta.url).pathname, encoding: 'utf8', timeout: 600e3 }))
+	for (let [name, gcs] of Object.entries(res)) is(gcs, 0, `${name}: ${gcs} collections at the worst setting`)
 })

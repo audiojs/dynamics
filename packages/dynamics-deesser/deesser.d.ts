@@ -44,3 +44,18 @@ export function deesserStream(options?: DeesserOptions): { latency: number, writ
 
 /** The output's delay in samples at a rate and look-ahead (ms): the look-ahead, never under the split's 1.5 ms. */
 export function latency(sampleRate?: number, lookahead?: number): number
+
+/** Seconds the output goes on after the input stops, past the delay: the linear-phase band's half-length (0 broadband). */
+export function tail(sampleRate?: number, mode?: 'split' | 'band' | 'broadband'): number
+
+/** The settings of one de-esser at a rate, for deesserBand and deessBlock (layout in deesser.js): `k`, the gain computer's, the smoother's and the detector's numbers; `h`, the linear-phase band; `win`, its Kaiser window; `th`, scratch. */
+export function deesserSet(sampleRate: number): { k: Float64Array, h: Float64Array, win: Float64Array, th: Float64Array }
+
+/** Sets the band from `mode` and `band` (split, fc, Q): the band and the detector's filters retuned, allocating nothing, when its edges move. */
+export function deesserBand(set: ReturnType<typeof deesserSet>, mode: 'split' | 'band' | 'broadband', band: Float64Array): void
+
+/** One channel's state for deessBlock. */
+export function deesserState(): Float64Array
+
+/** One block of one channel into `out` (may be `x`), `latency` samples late, allocating nothing; the manifest's path. `line`: the delay line, Float64Array(latency + M + 1) for the band's 2M + 1 taps. */
+export function deessBlock(x: Float32Array, out: Float32Array, state: Float64Array, line: Float64Array, set: ReturnType<typeof deesserSet>): Float32Array

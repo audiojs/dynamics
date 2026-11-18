@@ -22,26 +22,30 @@ export interface VcaOptions {
   "release"?: Auto
   /** -12..24 dB (default 0) */
   "makeup"?: Auto
+  /** 0..1 (default 0) */
+  "link"?: Auto
   at?: number | string
   duration?: number | string
 }
 
 export declare const vca: {
   (ctx: Ctx): Process
-  channels: "any"
-  tail: 0.3
+  channels: {"inputs":[{"channels":"any"},{"channels":"any","name":"key"}],"outputs":"any"}
+  tail: 0
   params: {
-    /** -60..0 dB (default -20) [restart] */
+    /** -60..0 dB (default -20) */
     "threshold": { type: "number", default: -20 }
-    /** 1..20 (default 4) [restart] */
+    /** 1..20 (default 4) */
     "ratio": { type: "number", default: 4 }
-    /** 0..12 dB (default 1) [restart] */
+    /** 0..12 dB (default 1) */
     "knee": { type: "number", default: 1 }
-    /** 0.1..100 ms (default 1) [restart] */
+    /** 0.1..100 ms (default 1) */
     "attack": { type: "number", default: 1 }
-    /** 20..2000 ms (default 150) [restart] */
+    /** 20..2000 ms (default 150) */
     "release": { type: "number", default: 150 }
-    /** -12..24 dB (default 0) [restart] */
+    /** -12..24 dB (default 0) */
     "makeup": { type: "number", default: 0 }
+    /** 0..1 (default 0) */
+    "link": { type: "number", default: 0 }
   }
 }

@@ -1,6 +1,5 @@
-import { envelope } from '@audio/dynamics-envelope'
 import { upwardExpanderGain } from '@audio/dynamics-expander'
-import { writer, concat, db2lin, lin2db } from './util.js'
+import { writer, concat, db2lin, lin2db, timeCoef } from './util.js'
 
 // De-limiter — the classical, non-ML counterpart to iZotope Ozone 12's "Unlimiter"
 // (Sept 2025), which introduced de-limiting as a category via a trained model. This
@@ -11,7 +10,8 @@ import { writer, concat, db2lin, lin2db } from './util.js'
 // 2012, JAES 60(6); Izhaki, Mixing Audio).
 //
 // Detector: a fast envelope (near-instant) and a slow envelope (sluggish), both
-// @audio/dynamics-envelope, both tracking the same input. Their gap in dB —
+// @audio/dynamics-envelope's branching one-pole follower (written out in
+// unlimitBlock, on typed state), both tracking the same input. Their gap in dB —
 // "transientness" — is ~0 on sustained material AND on heavily-limited program
 // (limiting flattens the fast/slow gap at former transients; that flatness is
 // exactly what gets re-expanded from the residual micro-transients that survive
@@ -70,13 +70,11 @@ export function unlimitStream(opts = {}) {
   let adaptive = opts.adaptive ?? true
   let crestTarget = opts.crestTarget ?? 10
 
-  let fastAttack = opts.fastAttack ?? 0.5
-  let fastRelease = opts.fastRelease ?? 20
-  let fast = envelope({ sampleRate: sr, attack: fastAttack, release: fastRelease })
-  let slow = envelope({ sampleRate: sr, attack: opts.slowAttack ?? 20, release: opts.slowRelease ?? 200 })
-  // Smooths the target lift with the fast envelope's own ballistics, so gain-curve
-  // corners and the amount/drive clamps don't zipper sample-to-sample.
-  let smooth = envelope({ sampleRate: sr, attack: fastAttack, release: fastRelease })
+  // Two followers of |x|, fast and slow; a third smooths the target lift with the fast
+  // one's own ballistics, so gain-curve corners and the amount/drive clamps don't zipper
+  // sample-to-sample.
+  let fastAttack = timeCoef(opts.fastAttack ?? 0.5, sr), fastRelease = timeCoef(opts.fastRelease ?? 20, sr)
+  let slowAttack = timeCoef(opts.slowAttack ?? 20, sr), slowRelease = timeCoef(opts.slowRelease ?? 200, sr)
 
   // Deficit-mode gating, three pieces (each kills a distinct false-lift mode):
   // 1. Peak hold — an attack's size is its PEAK transientness, not the values its
@@ -96,44 +94,59 @@ export function unlimitStream(opts = {}) {
   // A flattened (limited) onset holds its small transientness plateau for many ms —
   // fresh peaks keep re-arming the window and the deficit stays open, so restoration
   // engages exactly there and nowhere else.
-  let xHold = 0
+  // The state: the hold (xHold, dB), the samples since a fresh peak (attackT, from Infinity), the confirmation (0..1).
   let holdStep = 150 / sr // dB per sample
-  let confirm = 0
   let confirmStep = 1 / (0.003 * sr)
-  let attackT = Infinity
   let attackWin = Math.round(0.010 * sr) // samples
+  let k = Float64Array.of(amount, drive, adaptive ? 1 : 0, crestTarget, ceilLin, fastAttack, fastRelease, slowAttack, slowRelease, holdStep, confirmStep, attackWin)
+  let s = unlimitState()
 
   return {
-    write(chunk) {
-      let out = new Float32Array(chunk.length)
-      for (let i = 0; i < chunk.length; i++) {
-        let x = chunk[i]
-        let fastDb = lin2db(fast(x))
-        let slowDb = lin2db(slow(x))
-        let target
-        if (adaptive) {
-          let t = fastDb - slowDb
-          if (t < 0) t = 0
-          if (t > xHold) { xHold = t; attackT = 0 }
-          else { xHold = xHold - holdStep > 0 ? xHold - holdStep : 0; attackT++ }
-          confirm = t > ONSET_FLOOR ? (confirm + confirmStep > 1 ? 1 : confirm + confirmStep) : 0
-          target = attackT < attackWin ? confirm * unlimitDeficitGain(xHold, crestTarget, amount, drive) : 0
-        } else {
-          target = unlimitGain(fastDb, slowDb, amount, drive)
-        }
-        let liftDb = smooth(target)
-        let y = x * db2lin(liftDb)
-        if (ceiling != null) {
-          let a = y < 0 ? -y : y
-          if (a > ceilLin) y *= ceilLin / a
-        }
-        out[i] = y
-      }
-      return out
-    },
+    write(chunk) { return unlimitBlock(chunk, new Float32Array(chunk.length), s, k) },
     flush() { return new Float32Array(0) }
   }
 }
+
+/** One channel's state for unlimitBlock: the fast, slow and smoothing followers, xHold, attackT, confirm. */
+export const unlimitState = () => Float64Array.of(0, 0, 0, 0, Infinity, 0)
+
+/** One block of one channel into `out` (which may be `x`), allocating nothing. `s`, the state (unlimitState). `k`,
+ *  the settings: Float64Array(12), amount, drive, 1 for adaptive (0: proportional), crestTarget, the ceiling (linear,
+ *  Infinity for none), the fast followers' attack and release coefficients, the slow one's, holdStep (dB a sample),
+ *  confirmStep (a sample), attackWin (samples). `cl`: the ceiling (linear) for each sample (Float64Array, as long or
+ *  longer), as a host's ramp moves it; empty (the default), `k`'s. */
+export function unlimitBlock(x, out, s, k, cl = NONE) {
+  let amount = k[0], drive = k[1], adaptive = k[2] === 1, crestTarget = k[3], ceil = k[4], aF = k[5], rF = k[6], aS = k[7], rS = k[8]
+  let holdStep = k[9], confirmStep = k[10], attackWin = k[11], ramp = cl.length > 0
+  let fast = s[0], slow = s[1], smooth = s[2], xHold = s[3], attackT = s[4], confirm = s[5]
+  for (let i = 0; i < x.length; i++) {
+    let v = x[i], mag = v < 0 ? -v : v, c = mag > fast ? aF : rF
+    fast = c * fast + (1 - c) * mag
+    c = mag > slow ? aS : rS
+    slow = c * slow + (1 - c) * mag
+    let fastDb = lin2db(fast), slowDb = lin2db(slow)
+    if (adaptive) {
+      let t = fastDb - slowDb
+      if (t < 0) t = 0
+      if (t > xHold) { xHold = t; attackT = 0 }
+      else { xHold = xHold - holdStep > 0 ? xHold - holdStep : 0; attackT++ }
+      confirm = t > ONSET_FLOOR ? (confirm + confirmStep > 1 ? 1 : confirm + confirmStep) : 0
+    }
+    // both lifts, whichever mode: a call alone in a branch V8 compiled before it ran stays a call that boxes its numbers
+    let deficit = confirm * unlimitDeficitGain(xHold, crestTarget, amount, drive), proportional = unlimitGain(fastDb, slowDb, amount, drive)
+    let target = !adaptive ? proportional : attackT < attackWin ? deficit : 0
+    mag = target < 0 ? -target : target
+    c = mag > smooth ? aF : rF
+    smooth = c * smooth + (1 - c) * mag
+    let y = v * db2lin(smooth), ceilLin = ramp ? cl[i] : ceil
+    let a = y < 0 ? -y : y
+    if (a > ceilLin) y *= ceilLin / a
+    out[i] = y
+  }
+  s[0] = fast; s[1] = slow; s[2] = smooth; s[3] = xHold; s[4] = attackT; s[5] = confirm
+  return out
+}
+const NONE = new Float64Array(0)
 
 // Pure mapping (legacy / adaptive:false): transientness (dB, fast envelope above slow)
 // → target lift (dB), before ballistic smoothing. Proportional transient-following:

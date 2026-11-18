@@ -22,26 +22,30 @@ export interface FetOptions {
   "release"?: Auto
   /** -12..24 dB (default 0) */
   "makeup"?: Auto
+  /** 0..1 (default 0) */
+  "link"?: Auto
   at?: number | string
   duration?: number | string
 }
 
 export declare const fet: {
   (ctx: Ctx): Process
-  channels: "any"
-  tail: 0.3
+  channels: {"inputs":[{"channels":"any"},{"channels":"any","name":"key"}],"outputs":"any"}
+  tail: 0
   params: {
-    /** -60..0 dB (default -18) [restart] */
+    /** -60..0 dB (default -18) */
     "threshold": { type: "number", default: -18 }
-    /** 4..20 (default 8) [restart] */
+    /** 4..20 (default 8) */
     "ratio": { type: "number", default: 8 }
-    /** 0..12 dB (default 3) [restart] */
+    /** 0..12 dB (default 3) */
     "knee": { type: "number", default: 3 }
-    /** 0.02..5 ms (default 0.2) [restart] */
+    /** 0.02..5 ms (default 0.2) */
     "attack": { type: "number", default: 0.2 }
-    /** 20..1000 ms (default 120) [restart] */
+    /** 20..1000 ms (default 120) */
     "release": { type: "number", default: 120 }
-    /** -12..24 dB (default 0) [restart] */
+    /** -12..24 dB (default 0) */
     "makeup": { type: "number", default: 0 }
+    /** 0..1 (default 0) */
+    "link": { type: "number", default: 0 }
   }
 }

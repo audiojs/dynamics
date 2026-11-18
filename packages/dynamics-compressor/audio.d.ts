@@ -30,13 +30,15 @@ export interface CompressorOptions {
   "attack"?: Auto
   /** 1..1000 ms (default 100) */
   "release"?: Auto
+  /** 0..1 (default 0) */
+  "link"?: Auto
   at?: number | string
   duration?: number | string
 }
 
 export declare const compressor: {
   (ctx: Ctx): Process
-  channels: "any"
+  channels: {"inputs":[{"channels":"any"},{"channels":"any","name":"key"}],"outputs":"any"}
   tail: 0
   params: {
     /** -60..0 dB (default -20) */
@@ -55,9 +57,11 @@ export declare const compressor: {
     "upKnee": { type: "number", default: 6 }
     /** 0..40 dB (default 12) */
     "upRange": { type: "number", default: 12 }
-    /** 0.1..100 ms (default 5) [restart] */
+    /** 0.1..100 ms (default 5) */
     "attack": { type: "number", default: 5 }
-    /** 1..1000 ms (default 100) [restart] */
+    /** 1..1000 ms (default 100) */
     "release": { type: "number", default: 100 }
+    /** 0..1 (default 0) */
+    "link": { type: "number", default: 0 }
   }
 }

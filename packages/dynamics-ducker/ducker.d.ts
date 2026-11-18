@@ -29,3 +29,6 @@ export default function ducker(options?: DuckerOptions): (main?: Float32Array, s
 
 /** { write, flush } streaming primitive underlying the default export's streaming form. */
 export function duckerStream(options?: DuckerOptions): { write(main: Float32Array, side: Float32Array): Float32Array, flush(): Float32Array }
+
+/** One block of one channel into `out` (may be `x`), `x` turned down by `key`'s level, over as many samples as both hold, allocating nothing; the manifest's path. `state`: Float64Array(3), the follower, the RMS window's sum and position; `ring`: the window's squares (empty for peak). `settings`: Float64Array(7), threshold, ratio, knee, range (dB), the follower's attack and release coefficients, 1 for RMS. `lanes`: threshold, ratio, knee and range for each sample, as a host's ramp moves them, from 0, `stride`, 2·`stride` and 3·`stride`; empty or absent, `settings`'s. */
+export function duckBlock(x: Float32Array, key: Float32Array, out: Float32Array, state: Float64Array, ring: Float32Array, settings: Float64Array, lanes?: Float64Array, stride?: number): Float32Array

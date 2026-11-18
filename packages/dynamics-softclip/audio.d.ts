@@ -25,7 +25,7 @@ export interface SoftclipOptions {
 export declare const softclip: {
   (ctx: Ctx): Process
   channels: "any"
-  streaming: false
+  latency: (at: { sampleRate: number, params: Live, buffers: {} }) => number
   params: {
     /** default "tanh" */
     "curve": { type: "enum", values: ["tanh","atan","cubic","sin","hard"], default: "tanh" }
@@ -33,7 +33,7 @@ export declare const softclip: {
     "drive": { type: "number", default: 1 }
     /** 0.05..1 (default 1) */
     "ceiling": { type: "number", default: 1 }
-    /** 1..8 (default 1) */
+    /** 1..8 (default 1) [restart] */
     "oversample": { type: "number", default: 1 }
   }
 }

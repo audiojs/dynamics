@@ -24,13 +24,15 @@ export interface ExpanderOptions {
   "attack"?: Auto
   /** 1..1000 ms (default 50) */
   "release"?: Auto
+  /** 0..1 (default 0) */
+  "link"?: Auto
   at?: number | string
   duration?: number | string
 }
 
 export declare const expander: {
   (ctx: Ctx): Process
-  channels: "any"
+  channels: {"inputs":[{"channels":"any"},{"channels":"any","name":"key"}],"outputs":"any"}
   tail: 0
   params: {
     /** default "downward" */
@@ -43,9 +45,11 @@ export declare const expander: {
     "knee": { type: "number", default: 6 }
     /** 0..90 dB (default 40) */
     "range": { type: "number", default: 40 }
-    /** 0.1..100 ms (default 5) [restart] */
+    /** 0.1..100 ms (default 5) */
     "attack": { type: "number", default: 5 }
-    /** 1..1000 ms (default 50) [restart] */
+    /** 1..1000 ms (default 50) */
     "release": { type: "number", default: 50 }
+    /** 0..1 (default 0) */
+    "link": { type: "number", default: 0 }
   }
 }

@@ -25,14 +25,3 @@ export function timeCoef(ms, sampleRate) {
   if (ms <= 0) return 0
   return Math.exp(-1 / (ms * 0.001 * sampleRate))
 }
-
-// Smooth decoupled peak detector, eq. (17), run on a gain reduction in dB, as the compressor's:
-// y₁ = max(x, αR·y₁ + (1 − αR)·x), y = αA·y + (1 − αA)·y₁.
-export function smoother(attack, release, sampleRate) {
-  let aA = timeCoef(attack, sampleRate), aR = timeCoef(release, sampleRate), y1 = 0, y = 0
-  return x => {
-    let r = aR * y1 + (1 - aR) * x
-    y1 = x > r ? x : r
-    return y = aA * y + (1 - aA) * y1
-  }
-}

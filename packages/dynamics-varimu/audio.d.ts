@@ -27,17 +27,17 @@ export interface VarimuOptions {
 export declare const varimu: {
   (ctx: Ctx): Process
   channels: "any"
-  tail: 0.5
+  tail: 0
   params: {
-    /** -60..0 dB (default -22) [restart] */
+    /** -60..0 dB (default -22) */
     "threshold": { type: "number", default: -22 }
-    /** 6..30 dB (default 15) [restart] */
+    /** 6..30 dB (default 15) */
     "knee": { type: "number", default: 15 }
-    /** 5..200 ms (default 25) [restart] */
+    /** 5..200 ms (default 25) */
     "attack": { type: "number", default: 25 }
-    /** 50..2000 ms (default 400) [restart] */
+    /** 50..2000 ms (default 400) */
     "release": { type: "number", default: 400 }
-    /** -12..24 dB (default 0) [restart] */
+    /** -12..24 dB (default 0) */
     "makeup": { type: "number", default: 0 }
   }
 }

@@ -24,29 +24,33 @@ export interface GateOptions {
   "release"?: Auto
   /** 0..50 ms (default 0) */
   "lookahead"?: Auto
+  /** 0..1 (default 0) */
+  "link"?: Auto
   at?: number | string
   duration?: number | string
 }
 
 export declare const gate: {
   (ctx: Ctx): Process
-  channels: "any"
-  latency: (ctx: { sampleRate: number, params: Live }) => number
+  channels: {"inputs":[{"channels":"any"},{"channels":"any","name":"key"}],"outputs":"any"}
+  latency: (at: { sampleRate: number, params: Live, buffers: {} }) => number
   tail: 0
   params: {
-    /** -80..0 dB (default -40) [restart] */
+    /** -80..0 dB (default -40) */
     "threshold": { type: "number", default: -40 }
-    /** -90..0 dB (default -46) [restart] */
+    /** -90..0 dB (default -46) */
     "closeThreshold": { type: "number", default: -46 }
-    /** -90..0 dB (default -60) [restart] */
+    /** -90..0 dB (default -60) */
     "range": { type: "number", default: -60 }
-    /** 0..500 ms (default 10) [restart] */
+    /** 0..500 ms (default 10) */
     "hold": { type: "number", default: 10 }
-    /** 0.01..100 ms (default 0.1) [restart] */
+    /** 0.01..100 ms (default 0.1) */
     "attack": { type: "number", default: 0.1 }
-    /** 1..1000 ms (default 100) [restart] */
+    /** 1..1000 ms (default 100) */
     "release": { type: "number", default: 100 }
     /** 0..50 ms (default 0) [restart] */
     "lookahead": { type: "number", default: 0 }
+    /** 0..1 (default 0) */
+    "link": { type: "number", default: 0 }
   }
 }

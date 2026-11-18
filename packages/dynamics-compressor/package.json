@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-compressor",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Feed-forward soft-knee compressor, gain reduction smoothed in the log domain (Giannoulis, Massberg & Reiss 2012)",
   "type": "module",
   "sideEffects": false,

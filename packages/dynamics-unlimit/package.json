@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics-unlimit",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Classical de-limiter: transient-gated upward expansion restoring crest a brickwall limiter flattened",
   "type": "module",
   "sideEffects": false,

@@ -45,7 +45,8 @@
     "sidechain",
     "audio",
     "audiojs",
-    "dsp"
+    "dsp",
+    "transient-shaper"
   ],
   "author": "Dmitry Iv. <dfcreative@gmail.com>",
   "license": "MIT",

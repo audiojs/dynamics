@@ -1,0 +1,18 @@
+// @audio/dynamics/audio: the family's manifests for the audio host, each member's own /audio entry under its names.
+// A member is a package of packages/ the umbrella depends on that has an audio.js (test.js holds this list to them).
+export * from '@audio/dynamics-compand/audio'
+export * from '@audio/dynamics-compressor/audio'
+export * from '@audio/dynamics-deesser/audio'
+export * from '@audio/dynamics-ducker/audio'
+export * from '@audio/dynamics-expander/audio'
+export * from '@audio/dynamics-fet/audio'
+export * from '@audio/dynamics-gate/audio'
+export * from '@audio/dynamics-leveler/audio'
+export * from '@audio/dynamics-limiter/audio'
+export * from '@audio/dynamics-multiband/audio'
+export * from '@audio/dynamics-opto/audio'
+export * from '@audio/dynamics-softclip/audio'
+export * from '@audio/dynamics-transient-shaper/audio'
+export * from '@audio/dynamics-unlimit/audio'
+export * from '@audio/dynamics-varimu/audio'
+export * from '@audio/dynamics-vca/audio'

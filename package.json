@@ -1,6 +1,6 @@
 {
   "name": "@audio/dynamics",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "type": "module",
   "types": "index.d.ts",
   "description": "Compressor, limiter, gate",
@@ -10,23 +10,23 @@
       "types": "./index.d.ts",
       "default": "./index.js"
     },
-    "./package.json": "./package.json",
-    "./*": {
-      "types": "./members/*.d.ts",
-      "default": "./members/*.js"
-    }
+    "./audio": {
+      "types": "./audio.d.ts",
+      "default": "./audio.js"
+    },
+    "./package.json": "./package.json"
   },
   "files": [
     "index.js",
     "index.d.ts",
-    "members/"
+    "audio.js",
+    "audio.d.ts"
   ],
   "scripts": {
     "test": "node test.js",
     "test:all": "npm test --workspaces --if-present && npm test",
     "publish:all": "node ../compile/tools/tested.js && npm publish --workspaces && npm publish",
-    "members": "node scripts/members.js",
-    "prepublishOnly": "node ../compile/tools/tested.js && node scripts/members.js --check"
+    "prepublishOnly": "node ../compile/tools/tested.js"
   },
   "repository": {
     "type": "git",
